@@ -1,0 +1,245 @@
+import SwiftUI
+
+struct RadioView: View {
+  @StateObject private var radio = RadioController.shared
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  var body: some View {
+    NavigationStack {
+      ScrollView {
+        Group {
+          if radio.nowPlaying == nil {
+            RadioSkeletonView()
+              .transition(.opacity)
+          } else {
+            VStack(spacing: 24) {
+              stationCard
+              if let history = radio.nowPlaying?.songHistory, !history.isEmpty {
+                historySection(history: history)
+              }
+            }
+            .transition(.opacity)
+          }
+        }
+        .animation(.easeInOut(duration: 0.4), value: radio.nowPlaying == nil)
+        .padding(.vertical, 12)
+      }
+      .navigationTitle("Radio")
+      .onAppear { radio.start() }
+    }
+  }
+  @ViewBuilder
+  private var stationCard: some View {
+    let np = radio.nowPlaying
+    let song = np?.nowPlaying?.song
+    let isLivePlaying = audioManager.isRadioMode && audioManager.isPlaying
+    VStack(spacing: 14) {
+      ZStack(alignment: .topLeading) {
+        Group {
+          if let art = song?.art, let url = URL(string: art) {
+            LoadingImage(url: url, cornerRadius: 14, contentMode: .fill)
+          } else {
+            artPlaceholder
+          }
+        }
+        HStack(spacing: 4) {
+          Circle()
+            .fill(.white)
+            .frame(width: 5, height: 5)
+          Text("LIVE")
+            .font(.system(size: 10, weight: .heavy))
+            .foregroundColor(.white)
+            .tracking(0.6)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(.red))
+        .padding(10)
+      }
+      .frame(maxWidth: 280, maxHeight: 280)
+      .aspectRatio(1, contentMode: .fit)
+      .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+      .padding(.horizontal, 32)
+      VStack(spacing: 6) {
+        Text(song?.title ?? np?.station.name ?? "Neuro 21 Station")
+          .font(.title3.bold())
+          .multilineTextAlignment(.center)
+          .lineLimit(2)
+        Text(song?.artist ?? np?.station.description ?? "")
+          .font(.subheadline)
+          .foregroundColor(.secondary)
+          .multilineTextAlignment(.center)
+          .lineLimit(1)
+        if let listeners = np?.listeners {
+          Text("\(listeners.unique) listening")
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding(.top, 2)
+        }
+      }
+      .padding(.horizontal, 24)
+      Button {
+        if isLivePlaying {
+          audioManager.togglePlayPause()
+        } else {
+          radio.playLiveStream()
+        }
+      } label: {
+        ZStack {
+          Circle()
+            .fill(Color.appAccent)
+            .frame(width: 64, height: 64)
+          if audioManager.isBuffering && audioManager.isRadioMode && !audioManager.isPlaying {
+            LoadingIndicator(size: 36)
+          } else {
+            Image(systemName: isLivePlaying ? "pause.fill" : "play.fill")
+              .font(.system(size: 26, weight: .medium))
+              .foregroundColor(.white)
+              .offset(x: isLivePlaying ? 0 : 2)
+          }
+        }
+      }
+      .buttonStyle(PressableButtonStyle(scale: 0.9, dim: 0.85))
+      if let next = np?.playingNext?.song {
+        HStack(spacing: 12) {
+          if let art = next.art, let url = URL(string: art) {
+            LoadingImage(url: url, cornerRadius: 6)
+              .frame(width: 48, height: 48)
+              .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+          } else {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+              .fill(Color.secondary.opacity(0.15))
+              .frame(width: 48, height: 48)
+          }
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Up Next")
+              .font(.caption.weight(.semibold))
+              .foregroundColor(.secondary)
+            Text(next.title ?? next.text ?? "")
+              .font(.system(size: 15, weight: .semibold))
+              .lineLimit(1)
+            Text(next.artist ?? "")
+              .font(.system(size: 13))
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+          }
+          Spacer()
+        }
+        .padding(.horizontal, 16)
+      }
+    }
+  }
+  @ViewBuilder
+  private var artPlaceholder: some View {
+    LinearGradient(
+      colors: [Color.appAccent, Color.purple],
+      startPoint: .topLeading, endPoint: .bottomTrailing
+    )
+    .overlay(
+      Image(systemName: "dot.radiowaves.left.and.right")
+        .font(.system(size: 64, weight: .medium))
+        .foregroundColor(.white.opacity(0.85))
+    )
+  }
+  private func historySection(history: [RadioNowPlaying.HistoryItem]) -> some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Recently Played")
+        .font(.title3.bold())
+        .padding(.horizontal, 16)
+      LazyVStack(spacing: 0) {
+        ForEach(Array(history.prefix(10).enumerated()), id: \.offset) { _, item in
+          RadioHistoryRow(song: item.song)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+          Divider().padding(.leading, 76)
+        }
+      }
+    }
+  }
+}
+
+private struct RadioHistoryRow: View {
+  let song: RadioNowPlaying.SongInfo
+  var body: some View {
+    HStack(spacing: 12) {
+      if let art = song.art, let url = URL(string: art) {
+        LoadingImage(url: url, cornerRadius: 6)
+          .frame(width: 48, height: 48)
+          .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+      } else {
+        RoundedRectangle(cornerRadius: 6, style: .continuous)
+          .fill(Color.secondary.opacity(0.15))
+          .frame(width: 48, height: 48)
+      }
+      VStack(alignment: .leading, spacing: 2) {
+        Text(song.title ?? song.text ?? "")
+          .font(.system(size: 15, weight: .semibold))
+          .lineLimit(1)
+        Text(song.artist ?? "")
+          .font(.system(size: 13))
+          .foregroundColor(.secondary)
+          .lineLimit(1)
+      }
+      Spacer()
+    }
+  }
+}
+
+struct RadioSkeletonView: View {
+  @State private var pulse = false
+  var body: some View {
+    VStack(spacing: 24) {
+      VStack(spacing: 14) {
+        ShimmerBox(cornerRadius: 14)
+          .frame(width: 240, height: 240)
+          .padding(.horizontal, 32)
+        VStack(spacing: 8) {
+          HStack(spacing: 6) {
+            Circle()
+              .fill(Color.appAccent.opacity(0.6))
+              .frame(width: 6, height: 6)
+              .scaleEffect(pulse ? 1.3 : 0.8)
+              .opacity(pulse ? 1 : 0.5)
+            Text("CONNECTING")
+              .font(.caption.weight(.bold))
+              .foregroundColor(.appAccent.opacity(0.7))
+              .tracking(1.2)
+          }
+          ShimmerBox(cornerRadius: 6)
+            .frame(width: 220, height: 24)
+          ShimmerBox(cornerRadius: 4)
+            .frame(width: 150, height: 16)
+          ShimmerBox(cornerRadius: 4)
+            .frame(width: 90, height: 12)
+            .padding(.top, 4)
+        }
+        ShimmerBox(cornerRadius: 32)
+          .frame(width: 88, height: 88)
+          .padding(.top, 4)
+      }
+      VStack(alignment: .leading, spacing: 12) {
+        ShimmerBox(cornerRadius: 6)
+          .frame(width: 160, height: 22)
+          .padding(.horizontal, 16)
+        ForEach(0..<5, id: \.self) { _ in
+          HStack(spacing: 12) {
+            ShimmerBox(cornerRadius: 6)
+              .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 6) {
+              ShimmerBox(cornerRadius: 4).frame(width: 180, height: 14)
+              ShimmerBox(cornerRadius: 4).frame(width: 120, height: 12)
+            }
+            Spacer()
+          }
+          .padding(.horizontal, 16)
+          .padding(.vertical, 4)
+        }
+      }
+    }
+    .onAppear {
+      withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+        pulse = true
+      }
+    }
+  }
+}

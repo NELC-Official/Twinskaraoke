@@ -1,0 +1,255 @@
+import Combine
+import SwiftUI
+
+struct PlaylistDetailView: View {
+  let playlist: Playlist
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  @StateObject private var loader = PlaylistDetailViewModel()
+  @State private var scrollOffset: CGFloat = 0
+  var body: some View {
+    let songs: [Song] = loader.songs ?? playlist.songListDTOs ?? []
+    GeometryReader { geo in
+      ScrollView {
+        VStack(spacing: 18) {
+          parallaxHero(width: geo.size.width)
+          VStack(spacing: 4) {
+            Text(playlist.name)
+              .font(.title2.bold())
+              .multilineTextAlignment(.center)
+            Text("\(playlist.songCount) songs")
+              .font(.subheadline)
+              .foregroundColor(.secondary)
+          }
+          .padding(.horizontal)
+          if !songs.isEmpty {
+            actionButtons(songs: songs)
+            LazyVStack(spacing: 0) {
+              ForEach(songs) { song in
+                Button {
+                  audioManager.play(song: song, context: songs)
+                } label: {
+                  PlaylistRow(song: song)
+                }
+                .buttonStyle(PressableButtonStyle())
+                Divider().padding(.leading, 76)
+              }
+            }
+          } else if loader.isLoading {
+            VStack(spacing: 0) {
+              ForEach(0..<8, id: \.self) { _ in
+                SongRowSkeleton(size: .regular)
+                  .padding(.horizontal)
+                Divider().padding(.leading, 76)
+              }
+            }
+          }
+        }
+        .padding(.bottom, 16)
+        .background(
+          GeometryReader { proxy in
+            Color.clear.preference(
+              key: ScrollOffsetKey.self,
+              value: proxy.frame(in: .named("playlistScroll")).minY
+            )
+          }
+        )
+      }
+      .coordinateSpace(name: "playlistScroll")
+      .onPreferenceChange(ScrollOffsetKey.self) { scrollOffset = $0 }
+    }
+    .navigationTitle(scrollOffset < -180 ? playlist.name : "")
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbarBackground(scrollOffset < -180 ? .visible : .hidden, for: .navigationBar)
+    .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        PlaylistMoreMenu(songs: songs)
+      }
+    }
+    .animation(.easeInOut(duration: 0.2), value: scrollOffset < -180)
+    .onAppear {
+      loader.load(playlistID: playlist.id, fallback: playlist.songListDTOs)
+      RecentlyPlayedStore.shared.record(playlist)
+    }
+  }
+  @ViewBuilder
+  private func parallaxHero(width: CGFloat) -> some View {
+    let baseSize: CGFloat = 240
+    let stretch = max(0, scrollOffset)
+    let shrink = max(0, -scrollOffset * 0.4)
+    let size = max(140, baseSize + stretch * 0.6 - shrink)
+    let blur = min(8, max(0, -scrollOffset / 30))
+    let yOffset = scrollOffset > 0 ? -scrollOffset / 2 : 0
+    LoadingImage(url: playlist.imageURL, cornerRadius: 14)
+      .frame(width: size, height: size)
+      .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+      .shadow(color: .black.opacity(0.3), radius: 16, x: 0, y: 8)
+      .blur(radius: blur)
+      .opacity(1 - min(0.7, max(0, -scrollOffset / 250)))
+      .frame(width: width)
+      .offset(y: yOffset)
+      .padding(.top, 12)
+  }
+  @ViewBuilder
+  private func actionButtons(songs: [Song]) -> some View {
+    HStack(spacing: 12) {
+      Button {
+        if let first = songs.first {
+          audioManager.play(song: first, context: songs)
+        }
+      } label: {
+        actionLabel(symbol: "play.fill", text: "Play")
+      }
+      .buttonStyle(PressableButtonStyle())
+      Button {
+        if let random = songs.randomElement() {
+          audioManager.play(song: random, context: songs.shuffled())
+        }
+      } label: {
+        actionLabel(symbol: "shuffle", text: "Shuffle")
+      }
+      .buttonStyle(PressableButtonStyle())
+    }
+    .padding(.horizontal)
+  }
+  private func actionLabel(symbol: String, text: String) -> some View {
+    HStack(spacing: 6) {
+      Image(systemName: symbol)
+      Text(text).fontWeight(.semibold)
+    }
+    .frame(maxWidth: .infinity)
+    .padding(.vertical, 12)
+    .foregroundColor(.appAccent)
+    .background(Color(.tertiarySystemFill))
+    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+  }
+}
+
+private struct PlaylistMoreMenu: View {
+  let songs: [Song]
+  @StateObject private var downloads = DownloadManager.shared
+
+  private var pendingCount: Int {
+    songs.filter { !downloads.isDownloaded($0.id) && !downloads.isDownloading($0.id) }.count
+  }
+  private var inFlightCount: Int {
+    songs.filter { downloads.isDownloading($0.id) }.count
+  }
+  private var allDownloaded: Bool {
+    !songs.isEmpty && pendingCount == 0 && inFlightCount == 0
+  }
+
+  var body: some View {
+    Menu {
+      if inFlightCount > 0 {
+        Label("Downloading \(inFlightCount)…", systemImage: "arrow.down.circle")
+      } else if allDownloaded {
+        Button(role: .destructive) {
+          for s in songs { downloads.remove(songID: s.id) }
+        } label: {
+          Label("Remove Downloads", systemImage: "trash")
+        }
+      } else {
+        Button {
+          for s in songs where !downloads.isDownloaded(s.id) && !downloads.isDownloading(s.id) {
+            downloads.download(song: s)
+          }
+        } label: {
+          let label = pendingCount < songs.count ? "Download Remaining" : "Download"
+          Label(label, systemImage: "arrow.down.circle")
+        }
+      }
+    } label: {
+      Image(systemName: "ellipsis")
+        .font(.system(size: 16, weight: .semibold))
+        .foregroundColor(.appAccent)
+        .frame(width: 32, height: 32)
+        .contentShape(Rectangle())
+    }
+  }
+}
+
+private struct ScrollOffsetKey: PreferenceKey {
+  static var defaultValue: CGFloat = 0
+  static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
+}
+
+struct PlaylistRow: View {
+  let song: Song
+  var body: some View {
+    SongRow(song: song, size: .regular)
+      .padding(.horizontal)
+      .padding(.vertical, 8)
+  }
+}
+
+class PlaylistDetailViewModel: ObservableObject {
+  @Published var songs: [Song]?
+  @Published var isLoading = false
+  private var loadedID: String?
+  func load(playlistID: String, fallback: [Song]?) {
+    let alreadyFullyLoaded = (loadedID == playlistID) && (songs?.isEmpty == false)
+    if alreadyFullyLoaded { return }
+    loadedID = playlistID
+    if (songs?.isEmpty ?? true), let fallback = fallback, !fallback.isEmpty {
+      self.songs = fallback
+    }
+    guard
+      let url = URL(string: "https://api.neurokaraoke.com/api/playlist/\(playlistID)")
+    else { return }
+    isLoading = true
+    var r = URLRequest(url: url)
+    r.setValue(GuestIdentity.current, forHTTPHeaderField: "x-guest-id")
+    URLSession.shared.dataTask(with: r) { [weak self] data, _, _ in
+      guard let self = self else { return }
+      let list = Self.decodeSongs(from: data)
+      DispatchQueue.main.async {
+        if let list = list, !list.isEmpty {
+          self.songs = list
+        }
+        self.isLoading = false
+      }
+    }.resume()
+  }
+  private static func decodeSongs(from data: Data?) -> [Song]? {
+    guard let data = data else { return nil }
+    let decoder = JSONDecoder()
+    if let playlist = try? decoder.decode(Playlist.self, from: data),
+      let list = playlist.songListDTOs, !list.isEmpty
+    {
+      return list
+    }
+    if let list = try? decoder.decode([Song].self, from: data), !list.isEmpty {
+      return list
+    }
+    if let wrapped = try? decoder.decode(PlaylistSongsResponse.self, from: data),
+      !wrapped.songs.isEmpty
+    {
+      return wrapped.songs
+    }
+    return nil
+  }
+}
+
+private struct PlaylistSongsResponse: Codable {
+  let songs: [Song]
+
+  enum CodingKeys: String, CodingKey {
+    case items, songListDTOs, songs
+  }
+  init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    if let v = try? c.decode([Song].self, forKey: .songListDTOs) {
+      songs = v
+    } else if let v = try? c.decode([Song].self, forKey: .items) {
+      songs = v
+    } else if let v = try? c.decode([Song].self, forKey: .songs) {
+      songs = v
+    } else {
+      songs = []
+    }
+  }
+  func encode(to encoder: Encoder) throws {
+    var c = encoder.container(keyedBy: CodingKeys.self)
+    try c.encode(songs, forKey: .songs)
+  }
+}
