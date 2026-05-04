@@ -96,6 +96,9 @@ class AudioPlayerManager: ObservableObject {
   }
   @Published var autoMixEnabled: Bool = true
   @Published var upcomingSong: Song?
+  #if canImport(UIKit)
+  @Published var nowPlayingArtwork: UIImage?
+  #endif
   private var crossfadePlayer: AVPlayer?
   private var crossfadeTimer: Timer?
   private var crossfadeRampTimer: Timer?
@@ -105,7 +108,7 @@ class AudioPlayerManager: ObservableObject {
   private static let crossfadeDuration: Double = 6.0
   private var originalQueue: [Song] = []
   private var player: AVPlayer?
-  private var timeObserver: Any?
+  private var timeObserver: (player: AVPlayer, token: Any)?
   private var cancellables = Set<AnyCancellable>()
   private var itemObservers = Set<AnyCancellable>()
   private var artworkURL: URL?
@@ -233,7 +236,6 @@ class AudioPlayerManager: ObservableObject {
     updateNowPlayingInfo(reloadArtwork: true)
     scheduleAutoMixIfNeeded()
   }
-
   private func cancelAutoMix() {
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
@@ -248,7 +250,6 @@ class AudioPlayerManager: ObservableObject {
     upcomingSong = nil
     isCrossfading = false
   }
-
   private func scheduleAutoMixIfNeeded() {
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
@@ -278,7 +279,6 @@ class AudioPlayerManager: ObservableObject {
       }
     }
   }
-
   private func preloadNext(song: Song, url: URL) {
     let item = AVPlayerItem(url: url)
     KaraokeAudioProcessor.attachVocalCancel(to: item)
@@ -311,7 +311,6 @@ class AudioPlayerManager: ObservableObject {
       }
     statusObserver?.store(in: &itemObservers)
   }
-
   private func nextQueuedSong(after song: Song) -> Song? {
     guard !queue.isEmpty,
       let idx = queue.firstIndex(of: song),
@@ -319,7 +318,6 @@ class AudioPlayerManager: ObservableObject {
     else { return nil }
     return queue[idx + 1]
   }
-
   private func preferredURL(for song: Song) -> URL? {
     let downloaded = DownloadManager.shared.localURL(for: song.id)
     if FileManager.default.fileExists(atPath: downloaded.path) { return downloaded }
@@ -327,7 +325,6 @@ class AudioPlayerManager: ObservableObject {
     if FileManager.default.fileExists(atPath: cached.path) { return cached }
     return song.audioURL
   }
-
   private func beginCrossfade(to next: Song) {
     guard let nextPlayer = crossfadePlayer else { return }
     nextPlayer.volume = 0
@@ -363,7 +360,6 @@ class AudioPlayerManager: ObservableObject {
       }
       self.crossfadeRampTimer = timer
     }
-
     let startCrossfade: () -> Void = { [weak self] in
       guard let self, !crossfadeStarted, self.crossfadePlayer === nextPlayer else { return }
       crossfadeStarted = true
@@ -391,7 +387,6 @@ class AudioPlayerManager: ObservableObject {
         }
       }
     }
-
     if let item = nextPlayer.currentItem, item.status == .readyToPlay {
       startCrossfade()
       return
@@ -424,7 +419,6 @@ class AudioPlayerManager: ObservableObject {
     crossfadeFallback = fallback
     DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: fallback)
   }
-
   private func handoffToCrossfaded(player nextPlayer: AVPlayer, song: Song) {
     itemObservers.removeAll()
     player = nextPlayer
@@ -596,10 +590,11 @@ class AudioPlayerManager: ObservableObject {
   }
   private func setupTimeObserver() {
     if let existing = timeObserver {
-      player?.removeTimeObserver(existing)
+      existing.player.removeTimeObserver(existing.token)
       timeObserver = nil
     }
-    timeObserver = player?.addPeriodicTimeObserver(
+    guard let player else { return }
+    let token = player.addPeriodicTimeObserver(
       forInterval: CMTime(seconds: 0.5, preferredTimescale: 600), queue: .main
     ) { [weak self] time in
       guard let self = self, !self.isEditingProgress,
@@ -609,6 +604,7 @@ class AudioPlayerManager: ObservableObject {
       self.progress = time.seconds / duration
       self.updateNowPlayingElapsed(time.seconds)
     }
+    timeObserver = (player, token)
   }
   private func configureAudioSessionCategory() {
     do {
@@ -757,6 +753,9 @@ class AudioPlayerManager: ObservableObject {
     if reloadArtwork || artworkURL != targetArt {
       info[MPMediaItemPropertyArtwork] = nil
       artworkURL = targetArt
+      #if canImport(UIKit)
+      if reloadArtwork { nowPlayingArtwork = nil }
+      #endif
       if let targetArt {
         loadArtworkAsync(from: targetArt)
       }
@@ -783,6 +782,7 @@ class AudioPlayerManager: ObservableObject {
           var info = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
           info[MPMediaItemPropertyArtwork] = artwork
           MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+          self.nowPlayingArtwork = squareImage
         }
       #endif
     }.resume()

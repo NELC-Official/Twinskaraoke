@@ -11,7 +11,6 @@ struct AppleMusicProgressBar: View {
   var fillColor: Color = .primary
   var idleHeight: CGFloat = 7
   var activeHeight: CGFloat = 12
-
   var body: some View {
     GeometryReader { geo in
       let height: CGFloat = isScrubbing ? activeHeight : idleHeight

@@ -12,14 +12,12 @@ struct ArtworkPalette: Equatable {
   var secondary: Color
   var tertiary: Color
   var quaternary: Color
-
   static let placeholder = ArtworkPalette(
     primary: Color(red: 0.14, green: 0.16, blue: 0.22),
     secondary: Color(red: 0.10, green: 0.12, blue: 0.18),
     tertiary: Color(red: 0.18, green: 0.10, blue: 0.20),
     quaternary: Color(red: 0.08, green: 0.08, blue: 0.14)
   )
-
   #if canImport(UIKit)
   init(image: UIImage) {
     let samples = ArtworkPalette.dominantColors(image: image, count: 4)
@@ -32,19 +30,16 @@ struct ArtworkPalette: Equatable {
     self.quaternary = Color(arr[3])
   }
   #endif
-
   init(primary: Color, secondary: Color, tertiary: Color, quaternary: Color) {
     self.primary = primary
     self.secondary = secondary
     self.tertiary = tertiary
     self.quaternary = quaternary
   }
-
   #if canImport(UIKit)
   func allColors() -> [UIColor] {
     [primary, secondary, tertiary, quaternary].map { UIColor($0) }
   }
-
   /// Sample a small grid of pixels and pick the most-saturated, brightness-balanced
   /// distinct colors. Cheap and good enough for ambient backgrounds.
   private static func dominantColors(image: UIImage, count: Int) -> [UIColor] {
@@ -86,7 +81,6 @@ struct ArtworkPalette: Equatable {
       }
       .sorted { $0.1 > $1.1 }
       .prefix(count * 4)
-
     var picked: [UIColor] = []
     for (key, _) in ranked {
       let r = CGFloat((key >> 10) & 0x1F) / 31

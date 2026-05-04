@@ -14,16 +14,25 @@ struct HomeView: View {
           } else {
             VStack(alignment: .leading, spacing: 28) {
               if !viewModel.recentPlaylists.isEmpty {
-                PlaylistCarousel(title: "Recent Playlists", playlists: viewModel.recentPlaylists)
+                PlaylistCarousel(title: "Top Picks", playlists: viewModel.recentPlaylists)
               }
               if !recentlyPlayed.playlists.isEmpty {
                 PlaylistCarousel(title: "Recently Played", playlists: recentlyPlayed.playlists)
               }
-              if !viewModel.trending.isEmpty {
-                HomeSongSection(title: "Trending", songs: viewModel.trending)
-              }
               if !viewModel.suggestions.isEmpty {
                 HomeSongSection(title: "Made for You", songs: viewModel.suggestions)
+              }
+              HomePlaceholderSection(
+                title: "New Releases",
+                tiles: HomePlaceholderTile.newReleases
+              )
+              HomePlaceholderSection(
+                title: "Stations for You",
+                tiles: HomePlaceholderTile.stations,
+                style: .station
+              )
+              if !viewModel.trending.isEmpty {
+                HomeSongSection(title: "More to Explore", songs: viewModel.trending)
               }
             }
             .transition(.opacity)
@@ -47,7 +56,7 @@ struct PlaylistCarousel: View {
       NavigationLink(destination: PlaylistListView(title: title, playlists: playlists)) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           Text(title)
-            .font(.title2.bold())
+            .font(.system(size: 20, weight: .bold))
             .foregroundColor(.primary)
           Image(systemName: "chevron.right")
             .font(.system(size: 14, weight: .semibold))
@@ -56,25 +65,43 @@ struct PlaylistCarousel: View {
         }
       }
       .buttonStyle(.plain)
-      .padding(.horizontal)
+      .padding(.leading, 15)
+      .padding(.trailing)
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 16) {
           ForEach(playlists) { playlist in
             NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
-              VStack(alignment: .leading, spacing: 6) {
-                LoadingImage(url: playlist.imageURL, cornerRadius: 12)
-                  .frame(width: 160, height: 160)
-                  .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                Text(playlist.name)
-                  .font(.system(size: 13, weight: .bold))
-                  .foregroundColor(.primary)
-                  .lineLimit(1)
-                Text("\(playlist.songCount) songs")
-                  .font(.system(size: 11))
-                  .foregroundColor(.secondary)
-                  .lineLimit(1)
+              VStack(alignment: .leading, spacing: 0) {
+                LoadingImage(url: playlist.imageURL, cornerRadius: 0)
+                  .frame(width: 170, height: 170)
+                  .clipShape(
+                    UnevenRoundedRectangle(
+                      topLeadingRadius: 15, bottomLeadingRadius: 0,
+                      bottomTrailingRadius: 0, topTrailingRadius: 15,
+                      style: .continuous
+                    )
+                  )
+                VStack(alignment: .leading, spacing: 4) {
+                  Text(playlist.name)
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                  Text("\(playlist.songCount) songs")
+                    .font(.system(size: 13))
+                    .foregroundColor(Color(white: 0.6))
+                    .lineLimit(1)
+                }
+                .padding(10)
+                .frame(width: 170, alignment: .leading)
+                .modifier(TopPickGradient())
+                .clipShape(
+                  UnevenRoundedRectangle(
+                    topLeadingRadius: 0, bottomLeadingRadius: 15,
+                    bottomTrailingRadius: 15, topTrailingRadius: 0,
+                    style: .continuous
+                  )
+                )
               }
-              .frame(width: 160)
             }
             .buttonStyle(PressableButtonStyle())
           }
@@ -115,7 +142,7 @@ struct HomeSongSection: View {
       NavigationLink(destination: SongListView(title: title, songs: songs)) {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
           Text(title)
-            .font(.title2.bold())
+            .font(.system(size: 20, weight: .bold))
             .foregroundColor(.primary)
           Image(systemName: "chevron.right")
             .font(.system(size: 14, weight: .semibold))
@@ -124,7 +151,8 @@ struct HomeSongSection: View {
         }
       }
       .buttonStyle(.plain)
-      .padding(.horizontal)
+      .padding(.leading, 15)
+      .padding(.trailing)
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 16) {
           ForEach(songs) { song in
@@ -146,21 +174,97 @@ struct HomeSongCard: View {
       audioManager.play(song: song, context: context)
     } label: {
       VStack(alignment: .leading, spacing: 6) {
-        LoadingImage(url: song.imageURL, cornerRadius: 12)
-          .frame(width: 140, height: 140)
-          .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        LoadingImage(url: song.imageURL, cornerRadius: 10)
+          .frame(width: 170, height: 170)
+          .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         Text(song.title)
-          .font(.system(size: 13, weight: .bold))
-          .foregroundColor(.primary)
+          .font(.system(size: 15, weight: .semibold))
+          .foregroundColor(.white)
           .lineLimit(1)
         Text(song.displayArtist)
-          .font(.system(size: 11))
-          .foregroundColor(.secondary)
+          .font(.system(size: 12))
+          .foregroundColor(Color(white: 0.6))
           .lineLimit(1)
       }
-      .frame(width: 140)
+      .frame(width: 170)
     }
     .buttonStyle(PressableButtonStyle())
+  }
+}
+
+struct HomePlaceholderTile: Identifiable {
+  let id = UUID()
+  let title: String
+  let subtitle: String
+  let gradient: [Color]
+  static let newReleases: [HomePlaceholderTile] = [
+    .init(title: "Latest Singles", subtitle: "Updated daily", gradient: [Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30)]),
+    .init(title: "New Albums", subtitle: "This week", gradient: [Color(red: 0.20, green: 0.55, blue: 0.95), Color(red: 0.10, green: 0.20, blue: 0.55)]),
+    .init(title: "Coming Soon", subtitle: "Pre-add now", gradient: [Color(red: 0.95, green: 0.45, blue: 0.10), Color(red: 0.55, green: 0.15, blue: 0.05)]),
+  ]
+  static let stations: [HomePlaceholderTile] = [
+    .init(title: "Pop Station", subtitle: "Today's biggest hits", gradient: [Color(red: 0.90, green: 0.20, blue: 0.55), Color(red: 0.40, green: 0.05, blue: 0.30)]),
+    .init(title: "Hip-Hop Station", subtitle: "Curated for you", gradient: [Color(red: 0.60, green: 0.30, blue: 0.95), Color(red: 0.20, green: 0.05, blue: 0.45)]),
+    .init(title: "Chill Station", subtitle: "Easy listening", gradient: [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]),
+  ]
+}
+
+struct HomePlaceholderSection: View {
+  enum Style { case card, station }
+  let title: String
+  let tiles: [HomePlaceholderTile]
+  var style: Style = .card
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      HStack(alignment: .firstTextBaseline, spacing: 4) {
+        Text(title)
+          .font(.system(size: 20, weight: .bold))
+          .foregroundColor(.primary)
+        Image(systemName: "chevron.right")
+          .font(.system(size: 14, weight: .semibold))
+          .foregroundColor(.secondary)
+        Spacer()
+      }
+      .padding(.leading, 15)
+      .padding(.trailing)
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 16) {
+          ForEach(tiles) { tile in
+            HomePlaceholderTileView(tile: tile, style: style)
+          }
+        }
+        .padding(.horizontal)
+      }
+    }
+  }
+}
+
+private struct HomePlaceholderTileView: View {
+  let tile: HomePlaceholderTile
+  let style: HomePlaceholderSection.Style
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      ZStack(alignment: .bottomLeading) {
+        LinearGradient(colors: tile.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+        if style == .station {
+          Image(systemName: "dot.radiowaves.left.and.right")
+            .font(.system(size: 28, weight: .medium))
+            .foregroundColor(.white.opacity(0.85))
+            .padding(12)
+        }
+      }
+      .frame(width: 170, height: 170)
+      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      Text(tile.title)
+        .font(.system(size: 15, weight: .semibold))
+        .foregroundColor(.white)
+        .lineLimit(1)
+      Text(tile.subtitle)
+        .font(.system(size: 12))
+        .foregroundColor(Color(white: 0.6))
+        .lineLimit(1)
+    }
+    .frame(width: 170)
   }
 }
 

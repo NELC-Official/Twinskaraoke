@@ -9,7 +9,6 @@ struct FullScreenPlayerView: View {
   @EnvironmentObject var audioManager: AudioPlayerManager
   @StateObject private var favorites = FavoritesManager.shared
   @Environment(\.dismiss) private var dismiss
-  @State private var isVolumeScrubbing = false
   @State private var showingQueue = false
   @State private var showLyrics = false
   @State private var showKaraokeControls = false
@@ -30,10 +29,10 @@ struct FullScreenPlayerView: View {
               musicLayout(song: song, artSize: artSize)
             }
           }
-          .padding(.top, safeTop + 28)
+          .padding(.top, safeTop + 18)
           .padding(.bottom, safeBottom)
           dismissBar
-            .padding(.top, max(safeTop + 6, 18))
+            .padding(.top, 6)
         }
         .frame(width: geo.size.width, height: geo.size.height)
       }
@@ -90,7 +89,6 @@ struct FullScreenPlayerView: View {
                 audioManager.seek(to: (time + 0.1) / Double(song.duration))
               }
             )
-            .padding(.top, 8)
           }
           .overlay(alignment: .bottomTrailing) {
             karaokeRightDock
@@ -111,9 +109,9 @@ struct FullScreenPlayerView: View {
       .frame(maxHeight: .infinity)
       progressSection(song: song)
       controlsRow
-        .padding(.horizontal, 32)
-        .padding(.top, 20)
-      Spacer(minLength: 12)
+        .padding(.horizontal, 12)
+        .padding(.top, 56)
+      Spacer(minLength: 56)
       volumeRow
       bottomToolbar(song: song)
       Spacer(minLength: 8)
@@ -218,7 +216,6 @@ struct FullScreenPlayerView: View {
         audioManager.showFullScreen = false
       }
   }
-
   @ViewBuilder
   private func lyricsHeader(song: Song) -> some View {
     HStack(spacing: 12) {
@@ -239,7 +236,8 @@ struct FullScreenPlayerView: View {
       Spacer()
     }
     .padding(.horizontal, 32)
-    .padding(.top, 24)
+    .padding(.top, 0)
+    .padding(.bottom, 0)
   }
   private func artwork(song: Song, size: CGFloat) -> some View {
     ZStack {
@@ -289,7 +287,7 @@ struct FullScreenPlayerView: View {
       onSeekEnd: { fraction in audioManager.seek(to: fraction) }
     )
     .padding(.horizontal, 32)
-    .padding(.top, 16)
+    .padding(.top, showLyrics ? 0 : 16)
     HStack {
       Text(formattedTime(audioManager.progress * Double(song.duration)))
       Spacer()
@@ -310,7 +308,7 @@ struct FullScreenPlayerView: View {
         audioManager.playPrevious()
       } label: {
         Image(systemName: "backward.fill")
-          .font(.system(size: 32))
+          .font(.system(size: 36))
           .foregroundColor(.primary)
           .frame(maxWidth: .infinity)
       }
@@ -327,7 +325,7 @@ struct FullScreenPlayerView: View {
               .contentTransition(.opacity)
           }
         }
-        .font(.system(size: 48))
+        .font(.system(size: 54))
         .foregroundColor(.primary)
         .frame(maxWidth: .infinity)
       }
@@ -336,7 +334,7 @@ struct FullScreenPlayerView: View {
         audioManager.playNextOrRandom()
       } label: {
         Image(systemName: "forward.fill")
-          .font(.system(size: 32))
+          .font(.system(size: 36))
           .foregroundColor(.primary)
           .frame(maxWidth: .infinity)
       }
@@ -350,7 +348,7 @@ struct FullScreenPlayerView: View {
         .foregroundColor(.secondary)
       AppleMusicProgressBar(
         progress: $audioManager.volume,
-        isScrubbing: $isVolumeScrubbing,
+        isScrubbing: $audioManager.isUserScrubbingVolume,
         onSeekEnd: { _ in },
         trackColor: Color.primary.opacity(0.18),
         fillColor: .primary,
@@ -411,7 +409,6 @@ struct FullScreenPlayerView: View {
     .padding(.top, 16)
     .frame(maxWidth: .infinity)
   }
-
   @ViewBuilder
   private var karaokeRightDock: some View {
     VStack(spacing: 12) {
@@ -424,7 +421,6 @@ struct FullScreenPlayerView: View {
     .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showKaraokeControls)
     .animation(.spring(response: 0.4, dampingFraction: 0.85), value: audioManager.karaokeMode)
   }
-
   private var karaokeMicButton: some View {
     Button {
       if audioManager.karaokeMode {
@@ -451,7 +447,6 @@ struct FullScreenPlayerView: View {
     }
     .buttonStyle(PressableButtonStyle(scale: 0.9, dim: 0.7))
   }
-
   private var karaokeVerticalSlider: some View {
     VStack(spacing: 8) {
       Image(systemName: "person.slash")
@@ -484,7 +479,6 @@ struct FullScreenPlayerView: View {
     )
     .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
   }
-
   private var radioFavoriteID: String? {
     RadioController.shared.nowPlaying?.nowPlaying?.song.resolvedSongID
   }

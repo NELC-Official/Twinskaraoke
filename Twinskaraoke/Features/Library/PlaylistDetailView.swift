@@ -127,7 +127,6 @@ struct PlaylistDetailView: View {
 private struct PlaylistMoreMenu: View {
   let songs: [Song]
   @StateObject private var downloads = DownloadManager.shared
-
   private var pendingCount: Int {
     songs.filter { !downloads.isDownloaded($0.id) && !downloads.isDownloading($0.id) }.count
   }
@@ -137,7 +136,6 @@ private struct PlaylistMoreMenu: View {
   private var allDownloaded: Bool {
     !songs.isEmpty && pendingCount == 0 && inFlightCount == 0
   }
-
   var body: some View {
     Menu {
       if inFlightCount > 0 {
@@ -232,7 +230,6 @@ class PlaylistDetailViewModel: ObservableObject {
 
 private struct PlaylistSongsResponse: Codable {
   let songs: [Song]
-
   enum CodingKeys: String, CodingKey {
     case items, songListDTOs, songs
   }

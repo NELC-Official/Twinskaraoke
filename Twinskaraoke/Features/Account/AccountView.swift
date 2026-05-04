@@ -165,7 +165,6 @@ private struct LoginSheet: View {
     @State private var password = ""
     @State private var showPassword = false
     @FocusState private var focus: LoginField?
-
     private enum LoginField { case username, password }
     var body: some View {
         NavigationStack {

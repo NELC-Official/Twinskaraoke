@@ -15,7 +15,6 @@ struct AirPlayRoutePickerView: UIViewRepresentable {
     view.backgroundColor = .clear
     return view
   }
-
   func updateUIView(_ uiView: AVRoutePickerView, context: Context) {
     uiView.tintColor = .clear
     uiView.activeTintColor = .clear

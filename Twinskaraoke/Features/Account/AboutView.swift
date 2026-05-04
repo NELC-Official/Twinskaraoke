@@ -78,7 +78,6 @@ struct AboutView: View {
     .navigationTitle("About")
     .navigationBarTitleDisplayMode(.inline)
   }
-
   private func legalText(_ title: String, body: String) -> some View {
     ScrollView {
       Text(body)
@@ -90,7 +89,6 @@ struct AboutView: View {
     .navigationTitle(title)
     .navigationBarTitleDisplayMode(.inline)
   }
-
   private var privacyBody: String {
     """
     TwinsKaraoke stores your sign-in token, recently played playlists, and downloaded \
@@ -105,7 +103,6 @@ struct AboutView: View {
     metadata comes from radio.twinskaraoke.com.
     """
   }
-
   private var termsBody: String {
     """
     By using TwinsKaraoke you agree to use the service only for personal, \
@@ -140,7 +137,6 @@ private struct AboutLinkRow: View {
 }
 
 private struct AcknowledgementsView: View {
-
   private struct Credit: Identifiable {
     let id = UUID()
     let name: String

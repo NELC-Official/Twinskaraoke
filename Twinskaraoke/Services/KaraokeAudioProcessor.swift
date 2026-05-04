@@ -11,7 +11,6 @@ import MediaToolbox
 enum KaraokeAudioProcessor {
   /// 0 = vocals untouched, 1 = vocals fully cancelled.
   static var vocalAttenuation: Float = 0
-
   static func attachVocalCancel(to playerItem: AVPlayerItem) {
     Task.detached {
       let asset = playerItem.asset
@@ -22,7 +21,6 @@ enum KaraokeAudioProcessor {
         tracks = asset.tracks(withMediaType: .audio)
       }
       guard let track = tracks.first else { return }
-
       var callbacks = MTAudioProcessingTapCallbacks(
         version: kMTAudioProcessingTapCallbacksVersion_0,
         clientInfo: nil,
@@ -32,7 +30,6 @@ enum KaraokeAudioProcessor {
         unprepare: nil,
         process: karaokeTapProcess
       )
-
       var unmanagedTap: Unmanaged<MTAudioProcessingTap>?
       let status = withUnsafeMutablePointer(to: &unmanagedTap) { ptr -> OSStatus in
         ptr.withMemoryRebound(to: Optional<MTAudioProcessingTap>.self, capacity: 1) { rebound in
@@ -45,12 +42,10 @@ enum KaraokeAudioProcessor {
         }
       }
       guard status == noErr, let tap = unmanagedTap?.takeRetainedValue() else { return }
-
       let mix = AVMutableAudioMix()
       let params = AVMutableAudioMixInputParameters(track: track)
       params.audioTapProcessor = tap
       mix.inputParameters = [params]
-
       await MainActor.run { playerItem.audioMix = mix }
     }
   }
@@ -62,10 +57,8 @@ private let karaokeTapProcess: MTAudioProcessingTapProcessCallback = {
   let status = MTAudioProcessingTapGetSourceAudio(
     tap, numFrames, bufferList, flagsOut, &timeRange, framesProcessedOut)
   guard status == noErr else { return }
-
   let attenuation = KaraokeAudioProcessor.vocalAttenuation
   guard attenuation > 0.001 else { return }
-
   let abl = UnsafeMutableAudioBufferListPointer(bufferList)
   guard abl.count >= 2 else { return }
   let frames = Int(framesProcessedOut.pointee)
@@ -73,7 +66,6 @@ private let karaokeTapProcess: MTAudioProcessingTapProcessCallback = {
   guard let l = abl[0].mData?.assumingMemoryBound(to: Float.self),
     let r = abl[1].mData?.assumingMemoryBound(to: Float.self)
   else { return }
-
   let keep = 1.0 - attenuation
   for i in 0..<frames {
     let mid = (l[i] + r[i]) * 0.5

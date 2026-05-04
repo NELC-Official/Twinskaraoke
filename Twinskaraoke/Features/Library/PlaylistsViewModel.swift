@@ -52,7 +52,6 @@ class PlaylistsViewModel: ObservableObject {
 
 private struct FavoriteSongEnvelope: Decodable {
   let song: Song?
-
   enum CodingKeys: String, CodingKey { case song, songData, songDTO }
   init(from decoder: Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)

@@ -8,7 +8,6 @@ struct VerticalKaraokeLevel: View {
   @Binding var value: Double          // 0...1
   var enabled: Bool = true
   var onSet: (Double) -> Void = { _ in }
-
   var body: some View {
     GeometryReader { geo in
       let h = geo.size.height

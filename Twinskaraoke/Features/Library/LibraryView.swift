@@ -13,9 +13,49 @@ struct LibraryView: View {
             LibraryRow(icon: "music.note.list", color: .appAccent, title: "Playlists")
           }
           NavigationLink {
+            LibraryPlaceholderView(title: "Artists", systemImage: "music.mic")
+          } label: {
+            LibraryRow(icon: "music.mic", color: .appAccent, title: "Artists")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Albums", systemImage: "square.stack")
+          } label: {
+            LibraryRow(icon: "square.stack", color: .appAccent, title: "Albums")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Songs", systemImage: "music.note")
+          } label: {
+            LibraryRow(icon: "music.note", color: .appAccent, title: "Songs")
+          }
+          NavigationLink {
             FavoriteSongsView(viewModel: viewModel)
           } label: {
             LibraryRow(icon: "star.fill", color: .appAccent, title: "Favorites")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Made For You", systemImage: "sparkles")
+          } label: {
+            LibraryRow(icon: "sparkles", color: .appAccent, title: "Made For You")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Music Videos", systemImage: "play.rectangle")
+          } label: {
+            LibraryRow(icon: "play.rectangle", color: .appAccent, title: "Music Videos")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Genres", systemImage: "guitars")
+          } label: {
+            LibraryRow(icon: "guitars", color: .appAccent, title: "Genres")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Composers", systemImage: "music.quarternote.3")
+          } label: {
+            LibraryRow(icon: "music.quarternote.3", color: .appAccent, title: "Composers")
+          }
+          NavigationLink {
+            LibraryPlaceholderView(title: "Compilations", systemImage: "rectangle.stack")
+          } label: {
+            LibraryRow(icon: "rectangle.stack", color: .appAccent, title: "Compilations")
           }
           NavigationLink {
             DownloadedSongsView()
@@ -141,6 +181,26 @@ struct PlaylistGridCell: View {
         .foregroundColor(.secondary)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
+  }
+}
+
+struct LibraryPlaceholderView: View {
+  let title: String
+  let systemImage: String
+  var body: some View {
+    VStack(spacing: 16) {
+      Image(systemName: systemImage)
+        .font(.system(size: 48))
+        .foregroundColor(.secondary)
+      Text("No \(title) Yet")
+        .font(.system(size: 18, weight: .semibold))
+      Text("Items you add will appear here.")
+        .font(.system(size: 14))
+        .foregroundColor(.secondary)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .navigationTitle(title)
+    .navigationBarTitleDisplayMode(.inline)
   }
 }
 

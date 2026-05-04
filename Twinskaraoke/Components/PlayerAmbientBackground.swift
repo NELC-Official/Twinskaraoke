@@ -10,7 +10,6 @@ import SDWebImageSwiftUI
 struct PlayerAmbientBackground: View {
   let artworkURL: URL?
   @State private var palette: ArtworkPalette = .placeholder
-
   var body: some View {
     TimelineView(.animation(minimumInterval: 1.0 / 30, paused: false)) { context in
       let t = context.date.timeIntervalSinceReferenceDate
@@ -28,7 +27,6 @@ struct PlayerAmbientBackground: View {
     .onAppear { loadPalette() }
     .onChange(of: artworkURL) { _ in loadPalette() }
   }
-
   private func meshLayer(time: TimeInterval) -> some View {
     GeometryReader { geo in
       let w = geo.size.width
@@ -59,7 +57,6 @@ struct PlayerAmbientBackground: View {
       .blur(radius: 30)
     }
   }
-
   private func loadPalette() {
     guard let url = artworkURL else {
       palette = .placeholder

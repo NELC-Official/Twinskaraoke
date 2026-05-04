@@ -13,6 +13,8 @@ struct RadioView: View {
           } else {
             VStack(spacing: 24) {
               stationCard
+              hostedStationsSection
+              featuredShowsSection
               if let history = radio.nowPlaying?.songHistory, !history.isEmpty {
                 historySection(history: history)
               }
@@ -155,6 +157,118 @@ struct RadioView: View {
         }
       }
     }
+  }
+  private var hostedStationsSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Hosted Stations")
+        .font(.title3.bold())
+        .padding(.horizontal, 16)
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 14) {
+          ForEach(RadioStationTile.hosted) { tile in
+            RadioStationTileView(tile: tile)
+          }
+        }
+        .padding(.horizontal, 16)
+      }
+    }
+  }
+  private var featuredShowsSection: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text("Featured Shows")
+        .font(.title3.bold())
+        .padding(.horizontal, 16)
+      ScrollView(.horizontal, showsIndicators: false) {
+        HStack(spacing: 14) {
+          ForEach(RadioShowTile.featured) { tile in
+            RadioShowTileView(tile: tile)
+          }
+        }
+        .padding(.horizontal, 16)
+      }
+    }
+  }
+}
+
+private struct RadioStationTile: Identifiable {
+  let id = UUID()
+  let name: String
+  let tagline: String
+  let gradient: [Color]
+  static let hosted: [RadioStationTile] = [
+    .init(name: "Apple Music 1", tagline: "Worldwide", gradient: [Color(red: 0.95, green: 0.20, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.10)]),
+    .init(name: "Apple Music Hits", tagline: "Decades of hits", gradient: [Color(red: 0.20, green: 0.45, blue: 0.95), Color(red: 0.05, green: 0.15, blue: 0.45)]),
+    .init(name: "Apple Music Country", tagline: "Today's country", gradient: [Color(red: 0.85, green: 0.55, blue: 0.20), Color(red: 0.40, green: 0.20, blue: 0.05)]),
+  ]
+}
+
+private struct RadioStationTileView: View {
+  let tile: RadioStationTile
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      ZStack(alignment: .topLeading) {
+        LinearGradient(colors: tile.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+        HStack(spacing: 4) {
+          Circle().fill(.white).frame(width: 5, height: 5)
+          Text("LIVE")
+            .font(.system(size: 9, weight: .heavy))
+            .foregroundColor(.white)
+            .tracking(0.6)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(.red))
+        .padding(8)
+      }
+      .frame(width: 200, height: 200)
+      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      Text(tile.name)
+        .font(.system(size: 15, weight: .semibold))
+        .lineLimit(1)
+      Text(tile.tagline)
+        .font(.system(size: 12))
+        .foregroundColor(.secondary)
+        .lineLimit(1)
+    }
+    .frame(width: 200)
+  }
+}
+
+private struct RadioShowTile: Identifiable {
+  let id = UUID()
+  let title: String
+  let host: String
+  let gradient: [Color]
+  static let featured: [RadioShowTile] = [
+    .init(title: "The Zane Lowe Show", host: "Zane Lowe", gradient: [Color(red: 0.55, green: 0.10, blue: 0.55), Color(red: 0.20, green: 0.05, blue: 0.30)]),
+    .init(title: "Ebro Darden", host: "Hip-Hop", gradient: [Color(red: 0.10, green: 0.55, blue: 0.55), Color(red: 0.05, green: 0.25, blue: 0.30)]),
+    .init(title: "Travis Mills", host: "The Pop Show", gradient: [Color(red: 0.95, green: 0.40, blue: 0.65), Color(red: 0.45, green: 0.10, blue: 0.30)]),
+    .init(title: "Kelleigh Bannen", host: "Today's Country", gradient: [Color(red: 0.85, green: 0.65, blue: 0.30), Color(red: 0.45, green: 0.30, blue: 0.05)]),
+  ]
+}
+
+private struct RadioShowTileView: View {
+  let tile: RadioShowTile
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      ZStack(alignment: .bottomLeading) {
+        LinearGradient(colors: tile.gradient, startPoint: .topLeading, endPoint: .bottomTrailing)
+        Image(systemName: "mic.fill")
+          .font(.system(size: 26, weight: .medium))
+          .foregroundColor(.white.opacity(0.85))
+          .padding(12)
+      }
+      .frame(width: 160, height: 160)
+      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      Text(tile.title)
+        .font(.system(size: 14, weight: .semibold))
+        .lineLimit(1)
+      Text(tile.host)
+        .font(.system(size: 12))
+        .foregroundColor(.secondary)
+        .lineLimit(1)
+    }
+    .frame(width: 160)
   }
 }
 

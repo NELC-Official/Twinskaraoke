@@ -6,7 +6,6 @@ struct DownloadedSongsView: View {
   @EnvironmentObject var audioManager: AudioPlayerManager
   @State private var localSongs: [Song] = []
   @State private var scrollOffset: CGFloat = 0
-
   var body: some View {
     GeometryReader { geo in
       ScrollView {
@@ -60,7 +59,6 @@ struct DownloadedSongsView: View {
     .onAppear { refresh() }
     .onChange(of: downloads.downloadedIDs) { _ in refresh() }
   }
-
   private var emptyState: some View {
     VStack(spacing: 8) {
       Image(systemName: "arrow.down.circle")
@@ -75,7 +73,6 @@ struct DownloadedSongsView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
-
   @ViewBuilder
   private func heroHeader(width: CGFloat) -> some View {
     let baseSize: CGFloat = 240
@@ -89,7 +86,6 @@ struct DownloadedSongsView: View {
       .frame(width: width)
       .padding(.top, 12)
   }
-
   @ViewBuilder
   private var mosaicArtwork: some View {
     let arts = Array(localSongs.prefix(4).compactMap { $0.imageURL })
@@ -117,7 +113,6 @@ struct DownloadedSongsView: View {
       )
     }
   }
-
   private var actionButtons: some View {
     HStack(spacing: 12) {
       Button {
@@ -138,7 +133,6 @@ struct DownloadedSongsView: View {
       .buttonStyle(PressableButtonStyle())
     }
   }
-
   private func actionLabel(symbol: String, text: String) -> some View {
     HStack(spacing: 6) {
       Image(systemName: symbol)
@@ -150,7 +144,6 @@ struct DownloadedSongsView: View {
     .background(Color(.tertiarySystemFill))
     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
   }
-
   private func refresh() {
     let ids = downloads.downloadedIDs
     let cached = recentlyPlayed.playlists.flatMap { $0.songListDTOs ?? [] }

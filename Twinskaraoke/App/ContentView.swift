@@ -1,56 +1,106 @@
+import LNPopupUI
 import SwiftUI
-
-struct NowPlayingBarContainer: View {
-  @EnvironmentObject var audioManager: AudioPlayerManager
-  var body: some View {
-    Group {
-      if audioManager.currentSong != nil {
-        NowPlayingBar()
-          .transition(.move(edge: .bottom).combined(with: .opacity))
-      }
-    }
-    .animation(.spring(response: 0.45, dampingFraction: 0.82), value: audioManager.currentSong != nil)
-  }
-}
 
 struct ContentView: View {
   @StateObject var audioManager = AudioPlayerManager.shared
   var body: some View {
+    PopupHostView()
+      .environmentObject(audioManager)
+  }
+}
+
+private struct PopupHostView: View {
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  var body: some View {
+    rootTabs
+      .modifier(PopupModifier())
+      .environmentObject(audioManager)
+  }
+  private var rootTabs: some View {
     TabView {
       HomeView()
-        .safeAreaInset(edge: .bottom, spacing: 0) { NowPlayingBarContainer() }
         .tabItem { Label("Home", systemImage: "house.fill") }
       RadioView()
-        .safeAreaInset(edge: .bottom, spacing: 0) { NowPlayingBarContainer() }
         .tabItem { Label("Radio", systemImage: "dot.radiowaves.left.and.right") }
       LibraryView()
-        .safeAreaInset(edge: .bottom, spacing: 0) { NowPlayingBarContainer() }
         .tabItem { Label("Library", systemImage: "music.note.list") }
       SearchView()
-        .safeAreaInset(edge: .bottom, spacing: 0) { NowPlayingBarContainer() }
         .tabItem { Label("Search", systemImage: "magnifyingglass") }
       AccountView()
-        .safeAreaInset(edge: .bottom, spacing: 0) { NowPlayingBarContainer() }
         .tabItem { Label("Account", systemImage: "person") }
     }
     .tint(.appAccent)
-    .onAppear {
-      let appearance = UITabBarAppearance()
-      appearance.configureWithTransparentBackground()
-      appearance.backgroundEffect = UIBlurEffect(style: .systemUltraThinMaterial)
-      appearance.backgroundColor = UIColor.clear
-      UITabBar.appearance().standardAppearance = appearance
-      UITabBar.appearance().scrollEdgeAppearance = appearance
+  }
+}
+
+private struct PopupModifier: ViewModifier {
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  func body(content: Content) -> some View {
+    content
+      .popup(isBarPresented: .constant(audioManager.currentSong != nil),
+             isPopupOpen: $audioManager.showFullScreen) {
+        PopupContent()
+          .environmentObject(audioManager)
+      }
+      .popupBarStyle(.floating)
+      .popupCloseButtonStyle(.none)
+      .popupInteractionStyle(.drag)
+      .popupBarMarqueeScrollEnabled(false)
+  }
+}
+
+private struct PopupContent: View {
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  var body: some View {
+    let song = audioManager.currentSong
+    return FullScreenPlayerView()
+      .environmentObject(audioManager)
+      .popupTitle(song?.title ?? "", subtitle: song?.displayArtist ?? "")
+      .popupImage(popupImage())
+      .popupBarItems({
+        PopupBarTrailingItems()
+          .environmentObject(audioManager)
+      })
+  }
+  private func popupImage() -> Image {
+    if let ui = audioManager.nowPlayingArtwork {
+      return Image(uiImage: ui)
     }
-    .sheet(isPresented: $audioManager.showFullScreen) {
-      FullScreenPlayerView()
-        .environmentObject(audioManager)
-        .presentationDetents([.large])
-        .presentationDragIndicator(.hidden)
-        .presentationBackground(.clear)
-        .interactiveDismissDisabled(false)
+    return Image(systemName: "music.note")
+  }
+}
+
+private struct PopupBarTrailingItems: View {
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  var body: some View {
+    HStack(spacing: 16) {
+      Button {
+        audioManager.togglePlayPause()
+      } label: {
+        Image(systemName: playPauseSymbol)
+          .font(.system(size: 24, weight: .regular))
+          .foregroundColor(.primary)
+          .frame(width: 32, height: 32)
+          .contentShape(Rectangle())
+      }
+      if !audioManager.isRadioMode {
+        Button {
+          audioManager.playNextOrRandom()
+        } label: {
+          Image(systemName: "forward.fill")
+            .font(.system(size: 22, weight: .regular))
+            .foregroundColor(.primary)
+            .frame(width: 32, height: 32)
+            .contentShape(Rectangle())
+        }
+      }
     }
-    .environmentObject(audioManager)
+  }
+  private var playPauseSymbol: String {
+    if audioManager.isRadioMode {
+      return audioManager.isPlaying ? "stop.fill" : "play.fill"
+    }
+    return audioManager.isPlaying ? "pause.fill" : "play.fill"
   }
 }
 

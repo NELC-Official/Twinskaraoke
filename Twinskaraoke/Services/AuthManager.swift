@@ -15,14 +15,12 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
     @Published private(set) var errorMessage:    String?
     private(set) var authToken: String?
     private let defaults = UserDefaults.standard
-
     private enum K {
         static let token    = "nk.token"
         static let userId   = "nk.userId"
         static let username = "nk.username"
         static let avatar   = "nk.avatar"
     }
-
     private enum Endpoint {
         static let login           = "https://api.neurokaraoke.com/api/auth/login"
         static let discordAuth     = "https://discord.com/oauth2/authorize"
@@ -183,7 +181,6 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
         }
         return raw.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
     }
-
     private struct DiscordProfile { let id, username: String; let avatar: String? }
     private func fetchDiscordProfile(_ token: String) async throws -> DiscordProfile {
         var req = URLRequest(url: URL(string: Endpoint.discordUser)!)
@@ -254,7 +251,6 @@ final class AuthManager: NSObject, ObservableObject, ASWebAuthenticationPresenta
             .flatMap { $0.windows }
             .first { $0.isKeyWindow } ?? ASPresentationAnchor()
     }
-
     enum AuthError: Error {
         case http(Int, String), parse, invalidCallback, cancelled
     }

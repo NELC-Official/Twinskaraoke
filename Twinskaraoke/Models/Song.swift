@@ -9,7 +9,6 @@ struct Song: Codable, Identifiable, Equatable {
   let coverArt: Media?
   let originalArtists: [String]?
   let coverArtists: [String]?
-
   enum CodingKeys: String, CodingKey {
     case id, title, duration, absolutePath, coverArt, originalArtists, coverArtists
     case cloudflareID = "cloudflareId"
@@ -34,14 +33,17 @@ struct Song: Codable, Identifiable, Equatable {
     coverArtists?.joined(separator: ", ") ?? ""
   }
   /// Joined artist string with a stable fallback when no artist is available.
+  /// Every track in this catalog is a cover, so the cover artist is appended
+  /// when present (e.g. "Adele · Cover by Jane Doe").
   var displayArtist: String {
-    if let list = originalArtists, !list.isEmpty {
-      return list.joined(separator: ", ")
+    let original = originalArtists?.filter { !$0.isEmpty }.joined(separator: ", ") ?? ""
+    let cover = coverArtists?.filter { !$0.isEmpty }.joined(separator: ", ") ?? ""
+    switch (original.isEmpty, cover.isEmpty) {
+    case (false, false): return "\(original) · Cover by \(cover)"
+    case (false, true):  return original
+    case (true, false):  return "Cover by \(cover)"
+    case (true, true):   return "Unknown Artist"
     }
-    if let list = coverArtists, !list.isEmpty {
-      return list.joined(separator: ", ")
-    }
-    return "Unknown Artist"
   }
   /// `m:ss` formatted duration, blank for unknown lengths (e.g. live radio).
   var durationText: String {

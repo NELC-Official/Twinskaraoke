@@ -9,14 +9,12 @@ import SwiftUI
 struct SystemVolumeBridge: UIViewRepresentable {
   @Binding var volume: Double
   @Binding var isUserScrubbing: Bool
-
   func makeUIView(context: Context) -> MPVolumeView {
     let view = MPVolumeView(frame: .zero)
     view.alpha = 0.0001
     view.showsRouteButton = false
     return view
   }
-
   func updateUIView(_ uiView: MPVolumeView, context: Context) {
     guard isUserScrubbing else { return }
     DispatchQueue.main.async {

@@ -1,21 +1,19 @@
 import SwiftUI
 
 extension Color {
-  /// Apple Music accent color — appears red on light backgrounds and a slightly lifted
-  /// red-pink on dark backgrounds. Defined via the asset catalog if present, otherwise
-  /// via dynamic UIColor that adapts to the user's interface style.
-  static let appAccent: Color = {
-    #if canImport(UIKit)
-    return Color(uiColor: UIColor { trait in
-      switch trait.userInterfaceStyle {
-      case .dark:
-        return UIColor(red: 1.00, green: 0.29, blue: 0.40, alpha: 1) // #FF4A66
-      default:
-        return UIColor(red: 0.98, green: 0.14, blue: 0.24, alpha: 1) // #FA243C
-      }
-    })
-    #else
-    return Color(red: 0.98, green: 0.14, blue: 0.24)
-    #endif
-  }()
+  static let appAccent = Color(red: 0.99, green: 0.19, blue: 0.35) // #FC3158 — Apple Music pink-red
+  static let topPickGradientStart = Color(red: 83/255, green: 83/255, blue: 83/255)
+  static let topPickGradientEnd = Color(red: 36/255, green: 36/255, blue: 36/255)
+}
+
+struct TopPickGradient: ViewModifier {
+  func body(content: Content) -> some View {
+    content.background(
+      LinearGradient(
+        colors: [.topPickGradientStart, .topPickGradientEnd],
+        startPoint: .topTrailing,
+        endPoint: .bottomLeading
+      )
+    )
+  }
 }
