@@ -157,7 +157,7 @@ _Better Guides Than This Exist - if you get stuck here just google it_
 
 ## Step 8: Build and Install
 1. At the very top middle of the Xcode window, you will see a device selector (it might say "Any iOS Device" or show an iPhone simulator model). Click it.
-2. A drop down with a long list of possible destenations will appear at the bottom of this will be a option for "Manage Run Destinations"
+2. A drop down with a long list of possible destinations will appear at the bottom of this will be a option for "Manage Run Destinations"
 ![xcodebuild2](readmeimages/xcodebuild2.png) 
 3. On the Menu that opens, look under "iOS Devices" and select **Your actual iPhone** or **Your actual iPad**.
 4. In the top left corner of Xcode, click the big **Play (▶) button** to build and run the app.
