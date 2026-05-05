@@ -1,6 +1,9 @@
 name: Build
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -10,6 +13,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set Xcode version
+        run: sudo xcode-select -s /Applications/Xcode_16.app/Contents/Developer
 
       - name: Archive iPhone
         run: |
@@ -48,9 +54,9 @@ jobs:
 
       - name: Package Watch IPA
         run: |
+          rm -rf Payload
           mkdir -p Payload_Watch
           cp -R build/Watch.xcarchive/Products/Applications/*.app Payload_Watch/
-          # Rename folder to Payload specifically for the zip
           mv Payload_Watch Payload
           zip -v -r Twinskaraoke-Watch.ipa Payload
           mkdir -p output_watch && mv Twinskaraoke-Watch.ipa output_watch/
