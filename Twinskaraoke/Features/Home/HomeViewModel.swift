@@ -6,7 +6,10 @@ class HomeViewModel: ObservableObject {
   @Published var suggestions: [Song] = []
   @Published var recentPlaylists: [Playlist] = []
   @Published var isLoading = false
-  func fetchHomeData() {
+  private var hasLoaded = false
+  func fetchHomeData(force: Bool = false) {
+    if hasLoaded && !force { return }
+    hasLoaded = true
     isLoading = true
     let group = DispatchGroup()
     group.enter()

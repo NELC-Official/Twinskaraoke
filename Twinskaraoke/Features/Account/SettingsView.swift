@@ -7,9 +7,19 @@ struct SettingsView: View {
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
   var body: some View {
     List {
-      Section("Playback") {
+      Section {
         Toggle("Auto Mix", isOn: $audioManager.autoMixEnabled)
           .tint(.appAccent)
+        Toggle("Crossfade", isOn: $audioManager.crossfadeEnabled)
+          .tint(.appAccent)
+        if audioManager.crossfadeEnabled {
+          CrossfadeDurationRow(
+            seconds: Binding(
+              get: { audioManager.crossfadeSeconds },
+              set: { audioManager.crossfadeSeconds = $0 }
+            )
+          )
+        }
         Toggle("Autoplay Similar Songs", isOn: Binding(
           get: { audioManager.autoplayEnabled },
           set: { _ in audioManager.toggleAutoplay() }
@@ -20,6 +30,10 @@ struct SettingsView: View {
           Text("High Quality").tag("medium")
           Text("Lossless").tag("high")
         }
+      } header: {
+        Text("Playback")
+      } footer: {
+        Text("Auto Mix hands the next track off seamlessly with no dead air. Crossfade overlaps and fades between tracks; choose a shorter duration to keep the rhythm tight, or a longer one for a gentler, DJ-style transition.")
       }
       Section {
         Toggle("Auto-Download Played Songs", isOn: $downloadOnPlay)
@@ -90,5 +104,45 @@ struct SettingsView: View {
     if v < 0.75 { return "Medium" }
     if v < 0.95 { return "Strong" }
     return "Maximum"
+  }
+}
+
+private struct CrossfadeDurationRow: View {
+  @Binding var seconds: Double
+  private let range: ClosedRange<Double> = 1...15
+  private var displayLabel: String {
+    let s = Int(seconds.rounded())
+    return "\(s) Second\(s == 1 ? "" : "s")"
+  }
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      HStack {
+        Text("Duration")
+        Spacer()
+        Text(displayLabel)
+          .foregroundStyle(.secondary)
+          .monospacedDigit()
+      }
+      Slider(
+        value: Binding(
+          get: { seconds },
+          set: { seconds = $0.rounded() }
+        ),
+        in: range,
+        step: 1
+      ) {
+        Text("Crossfade Duration")
+      } minimumValueLabel: {
+        Text("1s")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      } maximumValueLabel: {
+        Text("15s")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
+      .tint(.appAccent)
+    }
+    .padding(.vertical, 2)
   }
 }

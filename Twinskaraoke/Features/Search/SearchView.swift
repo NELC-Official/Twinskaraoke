@@ -7,15 +7,10 @@ struct SearchView: View {
     NavigationStack {
       Group {
         if viewModel.isSearching {
-          List {
-            ForEach(0..<8, id: \.self) { _ in
-              SearchRowSkeleton()
-                .listRowBackground(Color.clear)
-                .listRowSeparator(.hidden)
-            }
-          }
-          .listStyle(.plain)
-          .transition(.opacity)
+          LoadingIndicator(size: 64)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.top, 80)
+            .transition(.opacity)
         } else if viewModel.results.isEmpty && !viewModel.searchText.isEmpty {
           VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
@@ -58,7 +53,7 @@ struct SearchView: View {
 
 private struct BrowseCategoriesView: View {
   private let topPicks: [(String, [Color])] = [
-    ("Apple Music Top 100", [Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30)]),
+    ("Twinskaraoke Top 100", [Color(red: 0.96, green: 0.30, blue: 0.45), Color(red: 0.55, green: 0.10, blue: 0.30)]),
     ("Charts", [Color(red: 0.20, green: 0.55, blue: 0.95), Color(red: 0.10, green: 0.20, blue: 0.55)]),
     ("Hits", [Color(red: 0.95, green: 0.45, blue: 0.10), Color(red: 0.55, green: 0.15, blue: 0.05)]),
     ("New Releases", [Color(red: 0.10, green: 0.75, blue: 0.85), Color(red: 0.05, green: 0.30, blue: 0.45)]),

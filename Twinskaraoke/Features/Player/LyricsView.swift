@@ -22,7 +22,7 @@ struct LyricsView: View {
         LyricsBouncingDots(isActive: true, dotSize: 12, color: .primary.opacity(0.6))
         Text("Loading lyrics")
           .font(.system(size: 14))
-          .foregroundColor(.secondary)
+          .foregroundColor(.primary.opacity(0.6))
       }
       .frame(maxWidth: .infinity, maxHeight: .infinity)
     } else {
@@ -93,8 +93,8 @@ private struct InstrumentalDots: View {
   }
   private var dotColor: Color {
     if isActive { return .primary }
-    if isPast { return .secondary.opacity(0.55) }
-    return .secondary.opacity(0.75)
+    if isPast { return .primary.opacity(0.35) }
+    return .primary.opacity(0.55)
   }
 }
 
@@ -230,8 +230,8 @@ private struct LyricLineRow: View {
   }
   private var lineColor: Color {
     if isCurrent { return .primary }
-    if isPast { return .secondary.opacity(0.55) }
-    return .secondary.opacity(0.75)
+    if isPast { return .primary.opacity(0.35) }
+    return .primary.opacity(0.55)
   }
   private var lineBlur: CGFloat {
     guard isPast else { return 0 }
@@ -257,7 +257,7 @@ private struct IntroDots: View {
       isActive: isActive,
       progress: isActive ? progress : nil,
       dotSize: 11,
-      color: isActive ? .primary : .secondary.opacity(0.5)
+      color: isActive ? .primary : .primary.opacity(0.4)
     )
     .opacity(isActive ? 1.0 : 0.3)
     .animation(.easeInOut(duration: 0.4), value: isActive)

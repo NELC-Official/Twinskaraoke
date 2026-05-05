@@ -53,9 +53,10 @@ struct MarqueeText: View {
           )
           .onAppear {
             containerWidth = geo.size.width
-            restartAnimation()
+            if animationTask == nil { restartAnimation() }
           }
           .onChange(of: geo.size.width) { newWidth in
+            guard abs(containerWidth - newWidth) > 0.5 else { return }
             containerWidth = newWidth
             restartAnimation()
           }
@@ -82,6 +83,7 @@ struct MarqueeText: View {
       }
       .onDisappear {
         animationTask?.cancel()
+        animationTask = nil
       }
   }
   private func restartAnimation() {

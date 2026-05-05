@@ -71,37 +71,20 @@ struct PlaylistCarousel: View {
         HStack(spacing: 16) {
           ForEach(playlists) { playlist in
             NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
-              VStack(alignment: .leading, spacing: 0) {
-                LoadingImage(url: playlist.imageURL, cornerRadius: 0)
+              VStack(alignment: .leading, spacing: 6) {
+                LoadingImage(url: playlist.imageURL, cornerRadius: 10)
                   .frame(width: 170, height: 170)
-                  .clipShape(
-                    UnevenRoundedRectangle(
-                      topLeadingRadius: 15, bottomLeadingRadius: 0,
-                      bottomTrailingRadius: 0, topTrailingRadius: 15,
-                      style: .continuous
-                    )
-                  )
-                VStack(alignment: .leading, spacing: 4) {
-                  Text(playlist.name)
-                    .font(.system(size: 18, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                  Text("\(playlist.songCount) songs")
-                    .font(.system(size: 13))
-                    .foregroundColor(Color(white: 0.6))
-                    .lineLimit(1)
-                }
-                .padding(10)
-                .frame(width: 170, alignment: .leading)
-                .modifier(TopPickGradient())
-                .clipShape(
-                  UnevenRoundedRectangle(
-                    topLeadingRadius: 0, bottomLeadingRadius: 15,
-                    bottomTrailingRadius: 15, topTrailingRadius: 0,
-                    style: .continuous
-                  )
-                )
+                  .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                Text(playlist.name)
+                  .font(.system(size: 15, weight: .semibold))
+                  .foregroundColor(.primary)
+                  .lineLimit(1)
+                Text("\(playlist.songCount) songs")
+                  .font(.system(size: 12))
+                  .foregroundColor(.secondary)
+                  .lineLimit(1)
               }
+              .frame(width: 170)
             }
             .buttonStyle(PressableButtonStyle())
           }
@@ -179,11 +162,11 @@ struct HomeSongCard: View {
           .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         Text(song.title)
           .font(.system(size: 15, weight: .semibold))
-          .foregroundColor(.white)
+          .foregroundColor(.primary)
           .lineLimit(1)
         Text(song.displayArtist)
           .font(.system(size: 12))
-          .foregroundColor(Color(white: 0.6))
+          .foregroundColor(.secondary)
           .lineLimit(1)
       }
       .frame(width: 170)
@@ -257,11 +240,11 @@ private struct HomePlaceholderTileView: View {
       .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
       Text(tile.title)
         .font(.system(size: 15, weight: .semibold))
-        .foregroundColor(.white)
+        .foregroundColor(.primary)
         .lineLimit(1)
       Text(tile.subtitle)
         .font(.system(size: 12))
-        .foregroundColor(Color(white: 0.6))
+        .foregroundColor(.secondary)
         .lineLimit(1)
     }
     .frame(width: 170)
@@ -270,28 +253,8 @@ private struct HomePlaceholderTileView: View {
 
 struct HomeSkeletonView: View {
   var body: some View {
-    VStack(alignment: .leading, spacing: 28) {
-      ForEach(0..<3, id: \.self) { _ in
-        VStack(alignment: .leading, spacing: 12) {
-          ShimmerBox(cornerRadius: 6)
-            .frame(width: 130, height: 24)
-            .padding(.horizontal)
-          ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 16) {
-              ForEach(0..<5, id: \.self) { _ in
-                VStack(alignment: .leading, spacing: 6) {
-                  ShimmerBox(cornerRadius: 12)
-                    .frame(width: 140, height: 140)
-                  ShimmerBox(cornerRadius: 4).frame(width: 110, height: 13)
-                  ShimmerBox(cornerRadius: 4).frame(width: 80, height: 11)
-                }
-                .frame(width: 140)
-              }
-            }
-            .padding(.horizontal)
-          }
-        }
-      }
-    }
+    LoadingIndicator(size: 64)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .padding(.top, 80)
   }
 }

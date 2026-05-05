@@ -94,7 +94,29 @@ class AudioPlayerManager: ObservableObject {
   @Published var karaokeStrength: Float = 0.85 {
     didSet { if karaokeMode { KaraokeAudioProcessor.vocalAttenuation = karaokeStrength } }
   }
-  @Published var autoMixEnabled: Bool = true
+  @Published var autoMixEnabled: Bool = (UserDefaults.standard.object(forKey: "nk.autoMixEnabled") as? Bool ?? true) {
+    didSet {
+      UserDefaults.standard.set(autoMixEnabled, forKey: "nk.autoMixEnabled")
+      scheduleAutoMixIfNeeded()
+    }
+  }
+  @Published var crossfadeEnabled: Bool = (UserDefaults.standard.object(forKey: "nk.crossfadeEnabled") as? Bool ?? false) {
+    didSet {
+      UserDefaults.standard.set(crossfadeEnabled, forKey: "nk.crossfadeEnabled")
+      scheduleAutoMixIfNeeded()
+    }
+  }
+  @Published var crossfadeSeconds: Double = AudioPlayerManager.loadCrossfadeSeconds() {
+    didSet {
+      let clamped = min(15, max(1, crossfadeSeconds))
+      if clamped != crossfadeSeconds {
+        crossfadeSeconds = clamped
+        return
+      }
+      UserDefaults.standard.set(crossfadeSeconds, forKey: "nk.crossfadeSeconds")
+      scheduleAutoMixIfNeeded()
+    }
+  }
   @Published var upcomingSong: Song?
   #if canImport(UIKit)
   @Published var nowPlayingArtwork: UIImage?
@@ -106,6 +128,15 @@ class AudioPlayerManager: ObservableObject {
   private var preloadedNext: (id: String, url: URL)?
   private var isCrossfading: Bool = false
   private static let crossfadeDuration: Double = 6.0
+  private static func loadCrossfadeSeconds() -> Double {
+    let raw = UserDefaults.standard.object(forKey: "nk.crossfadeSeconds") as? Double ?? 6.0
+    return min(15, max(1, raw))
+  }
+  private var activeCrossfadeDuration: Double {
+    if crossfadeEnabled { return min(15, max(1, crossfadeSeconds)) }
+    if autoMixEnabled { return 2.5 } // Auto Mix default blend.
+    return 0
+  }
   private var originalQueue: [Song] = []
   private var player: AVPlayer?
   private var timeObserver: (player: AVPlayer, token: Any)?
@@ -261,17 +292,25 @@ class AudioPlayerManager: ObservableObject {
     crossfadePlayer = nil
     preloadedNext = nil
     upcomingSong = nil
-    guard autoMixEnabled, !isRadioMode, let song = currentSong else { return }
-    let total = Double(song.duration)
-    guard total > Self.crossfadeDuration + 4 else { return }
+    guard !isRadioMode, let song = currentSong else { return }
+    guard autoMixEnabled || crossfadeEnabled else { return }
+    let duration = activeCrossfadeDuration
+    let metaTotal = Double(song.duration)
+    guard metaTotal > max(duration, 0.5) + 4 else { return }
     guard let next = nextQueuedSong(after: song) else { return }
     guard let nextURL = preferredURL(for: next) else { return }
     upcomingSong = next
     preloadNext(song: next, url: nextURL)
-    let triggerAt = total - Self.crossfadeDuration
-    crossfadeTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] timer in
+    crossfadeTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] timer in
       guard let self else { timer.invalidate(); return }
-      let elapsed = self.progress * total
+      // Use the actual player time, since the audio file's duration may differ
+      // from `song.duration` reported by the API.
+      guard let item = self.player?.currentItem else { return }
+      let elapsed = item.currentTime().seconds
+      var actualTotal = item.duration.seconds
+      if !actualTotal.isFinite || actualTotal <= 0 { actualTotal = metaTotal }
+      guard elapsed.isFinite, actualTotal.isFinite, actualTotal > 0 else { return }
+      let triggerAt = actualTotal - max(duration, 1.0)
       if elapsed >= triggerAt {
         timer.invalidate()
         self.crossfadeTimer = nil
@@ -332,8 +371,24 @@ class AudioPlayerManager: ObservableObject {
     let runRamp: () -> Void = { [weak self] in
       guard let self, self.crossfadePlayer === nextPlayer else { return }
       self.isCrossfading = true
+      let duration = self.activeCrossfadeDuration
+      if duration < 0.05 {
+        // Gapless: instant handoff with no fade.
+        self.player?.pause()
+        self.player?.volume = 1.0
+        nextPlayer.volume = 1.0
+        self.crossfadeRampTimer?.invalidate()
+        self.crossfadeRampTimer = nil
+        self.crossfadePlayer = nil
+        self.preloadedNext = nil
+        self.handoffToCrossfaded(player: nextPlayer, song: next)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+          self?.isCrossfading = false
+        }
+        return
+      }
       let steps = 60
-      let interval = Self.crossfadeDuration / Double(steps)
+      let interval = duration / Double(steps)
       var step = 0
       self.crossfadeRampTimer?.invalidate()
       let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] timer in

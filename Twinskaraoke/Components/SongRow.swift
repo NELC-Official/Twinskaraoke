@@ -67,8 +67,7 @@ struct SongRow: View {
           .font(.system(size: 13))
           .foregroundColor(.secondary)
       } else if downloads.isDownloading(song.id) {
-        ProgressView()
-          .controlSize(.mini)
+        LoadingIndicator(size: 18)
       }
       if !song.durationText.isEmpty {
         Text(song.durationText)
@@ -118,15 +117,12 @@ struct SongRow: View {
 struct SongRowSkeleton: View {
   let size: SongRowSize
   var body: some View {
-    HStack(spacing: 12) {
-      ShimmerBox(cornerRadius: size.cornerRadius)
-        .frame(width: size.artSize, height: size.artSize)
-      VStack(alignment: .leading, spacing: 6) {
-        ShimmerBox(cornerRadius: 4).frame(width: 160, height: 14)
-        ShimmerBox(cornerRadius: 4).frame(width: 100, height: 12)
-      }
+    HStack {
+      Spacer()
+      LoadingIndicator(size: 32)
       Spacer()
     }
+    .frame(height: size.artSize)
     .padding(.vertical, 4)
   }
 }

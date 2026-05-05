@@ -29,8 +29,8 @@ struct FullScreenPlayerView: View {
               musicLayout(song: song, artSize: artSize)
             }
           }
-          .padding(.top, safeTop + 18)
-          .padding(.bottom, safeBottom)
+          .padding(.top, safeTop + 6)
+          .padding(.bottom, max(0, safeBottom - 8))
           dismissBar
             .padding(.top, 6)
         }
@@ -98,9 +98,9 @@ struct FullScreenPlayerView: View {
           .transition(.opacity)
         } else {
           VStack(spacing: 0) {
-            Spacer(minLength: 12)
+            Spacer(minLength: 20)
             artwork(song: song, size: artSize)
-            Spacer(minLength: 16)
+            Spacer(minLength: 28)
             titleRow(song: song)
           }
           .transition(.opacity)
@@ -110,8 +110,8 @@ struct FullScreenPlayerView: View {
       progressSection(song: song)
       controlsRow
         .padding(.horizontal, 12)
-        .padding(.top, 56)
-      Spacer(minLength: 56)
+        .padding(.top, 40)
+      Spacer(minLength: 36)
       volumeRow
       bottomToolbar(song: song)
       Spacer(minLength: 8)
@@ -272,7 +272,7 @@ struct FullScreenPlayerView: View {
         )
         Text(song.displayArtist)
           .font(.system(size: 17))
-          .foregroundColor(.appAccent)
+          .foregroundColor(.secondary)
           .lineLimit(1)
       }
       Spacer(minLength: 8)
@@ -308,7 +308,7 @@ struct FullScreenPlayerView: View {
         audioManager.playPrevious()
       } label: {
         Image(systemName: "backward.fill")
-          .font(.system(size: 36))
+          .font(.system(size: 32))
           .foregroundColor(.primary)
           .frame(maxWidth: .infinity)
       }
@@ -325,7 +325,7 @@ struct FullScreenPlayerView: View {
               .contentTransition(.opacity)
           }
         }
-        .font(.system(size: 54))
+        .font(.system(size: 48))
         .foregroundColor(.primary)
         .frame(maxWidth: .infinity)
       }
@@ -334,7 +334,7 @@ struct FullScreenPlayerView: View {
         audioManager.playNextOrRandom()
       } label: {
         Image(systemName: "forward.fill")
-          .font(.system(size: 36))
+          .font(.system(size: 32))
           .foregroundColor(.primary)
           .frame(maxWidth: .infinity)
       }

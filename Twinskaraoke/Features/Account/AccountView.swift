@@ -209,7 +209,7 @@ private struct LoginSheet: View {
                             Spacer()
                             Group {
                                 if auth.isLoading {
-                                    ProgressView().tint(.white)
+                                    LoadingIndicator(size: 22)
                                 } else {
                                     Text("Sign In")
                                         .font(.system(size: 16, weight: .semibold))

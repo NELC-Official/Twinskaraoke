@@ -196,9 +196,9 @@ private struct RadioStationTile: Identifiable {
   let tagline: String
   let gradient: [Color]
   static let hosted: [RadioStationTile] = [
-    .init(name: "Apple Music 1", tagline: "Worldwide", gradient: [Color(red: 0.95, green: 0.20, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.10)]),
-    .init(name: "Apple Music Hits", tagline: "Decades of hits", gradient: [Color(red: 0.20, green: 0.45, blue: 0.95), Color(red: 0.05, green: 0.15, blue: 0.45)]),
-    .init(name: "Apple Music Country", tagline: "Today's country", gradient: [Color(red: 0.85, green: 0.55, blue: 0.20), Color(red: 0.40, green: 0.20, blue: 0.05)]),
+    .init(name: "Twinskaraoke 1", tagline: "Worldwide", gradient: [Color(red: 0.95, green: 0.20, blue: 0.30), Color(red: 0.45, green: 0.05, blue: 0.10)]),
+    .init(name: "Twinskaraoke Hits", tagline: "Decades of hits", gradient: [Color(red: 0.20, green: 0.45, blue: 0.95), Color(red: 0.05, green: 0.15, blue: 0.45)]),
+    .init(name: "Twinskaraoke Country", tagline: "Today's country", gradient: [Color(red: 0.85, green: 0.55, blue: 0.20), Color(red: 0.40, green: 0.20, blue: 0.05)]),
   ]
 }
 
@@ -300,60 +300,9 @@ private struct RadioHistoryRow: View {
 }
 
 struct RadioSkeletonView: View {
-  @State private var pulse = false
   var body: some View {
-    VStack(spacing: 24) {
-      VStack(spacing: 14) {
-        ShimmerBox(cornerRadius: 14)
-          .frame(width: 240, height: 240)
-          .padding(.horizontal, 32)
-        VStack(spacing: 8) {
-          HStack(spacing: 6) {
-            Circle()
-              .fill(Color.appAccent.opacity(0.6))
-              .frame(width: 6, height: 6)
-              .scaleEffect(pulse ? 1.3 : 0.8)
-              .opacity(pulse ? 1 : 0.5)
-            Text("CONNECTING")
-              .font(.caption.weight(.bold))
-              .foregroundColor(.appAccent.opacity(0.7))
-              .tracking(1.2)
-          }
-          ShimmerBox(cornerRadius: 6)
-            .frame(width: 220, height: 24)
-          ShimmerBox(cornerRadius: 4)
-            .frame(width: 150, height: 16)
-          ShimmerBox(cornerRadius: 4)
-            .frame(width: 90, height: 12)
-            .padding(.top, 4)
-        }
-        ShimmerBox(cornerRadius: 32)
-          .frame(width: 88, height: 88)
-          .padding(.top, 4)
-      }
-      VStack(alignment: .leading, spacing: 12) {
-        ShimmerBox(cornerRadius: 6)
-          .frame(width: 160, height: 22)
-          .padding(.horizontal, 16)
-        ForEach(0..<5, id: \.self) { _ in
-          HStack(spacing: 12) {
-            ShimmerBox(cornerRadius: 6)
-              .frame(width: 48, height: 48)
-            VStack(alignment: .leading, spacing: 6) {
-              ShimmerBox(cornerRadius: 4).frame(width: 180, height: 14)
-              ShimmerBox(cornerRadius: 4).frame(width: 120, height: 12)
-            }
-            Spacer()
-          }
-          .padding(.horizontal, 16)
-          .padding(.vertical, 4)
-        }
-      }
-    }
-    .onAppear {
-      withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-        pulse = true
-      }
-    }
+    LoadingIndicator(size: 64)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .padding(.top, 80)
   }
 }

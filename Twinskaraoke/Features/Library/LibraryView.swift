@@ -207,23 +207,8 @@ struct LibraryPlaceholderView: View {
 struct PlaylistsSkeletonView: View {
   let cols: [GridItem]
   var body: some View {
-    LazyVGrid(columns: cols, spacing: 16) {
-      ForEach(0..<8, id: \.self) { _ in
-        VStack(alignment: .leading, spacing: 6) {
-          ShimmerBox(cornerRadius: 10)
-            .aspectRatio(1, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-          ShimmerBox(cornerRadius: 4)
-            .frame(height: 14)
-          HStack {
-            ShimmerBox(cornerRadius: 4).frame(width: 80, height: 12)
-            Spacer()
-          }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-      }
-    }
-    .padding(.horizontal, 16)
-    .padding(.vertical, 12)
+    LoadingIndicator(size: 64)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .padding(.top, 80)
   }
 }
