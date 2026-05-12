@@ -1,0 +1,32 @@
+import SwiftUI
+
+struct PlayerVolumeRow: View {
+  @EnvironmentObject var audioManager: AudioPlayerManager
+  var body: some View {
+    HStack(spacing: 12) {
+      Image(systemName: "speaker.fill")
+        .font(.system(size: 13))
+        .foregroundColor(.secondary)
+      AppleMusicProgressBar(
+        progress: $audioManager.volume,
+        isScrubbing: $audioManager.isUserScrubbingVolume,
+        onSeekEnd: { _ in },
+        trackColor: Color.primary.opacity(0.18),
+        fillColor: .primary,
+        idleHeight: 7,
+        activeHeight: 12
+      )
+      Image(systemName: "speaker.wave.3.fill")
+        .font(.system(size: 13))
+        .foregroundColor(.secondary)
+    }
+    .padding(.horizontal, 32)
+    #if canImport(UIKit)
+      .background(
+        SystemVolumeBridge(
+          volume: $audioManager.volume,
+          isUserScrubbing: $audioManager.isUserScrubbingVolume
+        ).frame(width: 0, height: 0))
+    #endif
+  }
+}

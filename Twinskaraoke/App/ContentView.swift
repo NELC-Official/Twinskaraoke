@@ -54,41 +54,69 @@ private struct PopupModifier: ViewModifier {
 private struct PopupContent: View {
   @EnvironmentObject var audioManager: AudioPlayerManager
   var body: some View {
-    let song = audioManager.currentSong
-    return FullScreenPlayerView()
+    FullScreenPlayerView()
       .environmentObject(audioManager)
-      .popupTitle(song?.title ?? "", subtitle: song?.displayArtist ?? "")
-      .popupImage(popupImage())
+      .modifier(
+        PopupTitleModifier(
+          title: audioManager.currentSong?.title ?? "",
+          subtitle: audioManager.currentSong?.displayArtist ?? ""))
+      .modifier(PopupImageModifier(artwork: audioManager.nowPlayingArtwork))
       .popupBarItems({
-        PopupBarTrailingItems()
-          .environmentObject(audioManager)
+        PopupBarTrailingItems(
+          isPlaying: audioManager.isPlaying,
+          isRadioMode: audioManager.isRadioMode,
+          onTogglePlayPause: { [weak audioManager] in audioManager?.togglePlayPause() },
+          onNext: { [weak audioManager] in audioManager?.playNextOrRandom() })
       })
-  }
-  private func popupImage() -> Image {
-    if let ui = audioManager.nowPlayingArtwork {
-      return Image(uiImage: ui)
-    }
-    return Image(systemName: "music.note")
   }
 }
 
-private struct PopupBarTrailingItems: View {
-  @EnvironmentObject var audioManager: AudioPlayerManager
+private struct PopupTitleModifier: ViewModifier, Equatable {
+  let title: String
+  let subtitle: String
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.title == rhs.title && lhs.subtitle == rhs.subtitle
+  }
+  func body(content: Content) -> some View {
+    content.popupTitle(title, subtitle: subtitle)
+  }
+}
+
+private struct PopupImageModifier: ViewModifier, Equatable {
+  let artwork: UIImage?
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.artwork === rhs.artwork
+  }
+  func body(content: Content) -> some View {
+    if let artwork {
+      content.popupImage(Image(uiImage: artwork))
+    } else {
+      content.popupImage(Image(systemName: "music.note"))
+    }
+  }
+}
+
+private struct PopupBarTrailingItems: View, Equatable {
+  let isPlaying: Bool
+  let isRadioMode: Bool
+  let onTogglePlayPause: () -> Void
+  let onNext: () -> Void
+
+  static func == (lhs: Self, rhs: Self) -> Bool {
+    lhs.isPlaying == rhs.isPlaying && lhs.isRadioMode == rhs.isRadioMode
+  }
+
   var body: some View {
     HStack(spacing: 16) {
-      Button {
-        audioManager.togglePlayPause()
-      } label: {
+      Button(action: onTogglePlayPause) {
         Image(systemName: playPauseSymbol)
           .font(.system(size: 24, weight: .regular))
           .foregroundColor(.primary)
           .frame(width: 32, height: 32)
           .contentShape(Rectangle())
       }
-      if !audioManager.isRadioMode {
-        Button {
-          audioManager.playNextOrRandom()
-        } label: {
+      if !isRadioMode {
+        Button(action: onNext) {
           Image(systemName: "forward.fill")
             .font(.system(size: 22, weight: .regular))
             .foregroundColor(.primary)
@@ -99,10 +127,10 @@ private struct PopupBarTrailingItems: View {
     }
   }
   private var playPauseSymbol: String {
-    if audioManager.isRadioMode {
-      return audioManager.isPlaying ? "stop.fill" : "play.fill"
+    if isRadioMode {
+      return isPlaying ? "stop.fill" : "play.fill"
     }
-    return audioManager.isPlaying ? "pause.fill" : "play.fill"
+    return isPlaying ? "pause.fill" : "play.fill"
   }
 }
 

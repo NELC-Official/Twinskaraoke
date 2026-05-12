@@ -1,3 +1,4 @@
+import SDWebImageSwiftUI
 import SwiftUI
 
 struct SettingsView: View {
@@ -5,6 +6,7 @@ struct SettingsView: View {
   @AppStorage("nk.streamingQuality") private var streamingQuality: String = "high"
   @AppStorage("nk.downloadOnPlay") private var downloadOnPlay: Bool = false
   @AppStorage("nk.respectReducedMotion") private var respectReducedMotion: Bool = true
+  @State private var pendingAction: SettingsDestructiveAction?
   var body: some View {
     List {
       Section {
@@ -37,7 +39,7 @@ struct SettingsView: View {
         Text("Playback")
       } footer: {
         Text(
-          "Auto Mix hands the next track off seamlessly with no dead air. Crossfade overlaps and fades between tracks; choose a shorter duration to keep the rhythm tight, or a longer one for a gentler, DJ-style transition."
+          "Auto Mix uses beat detection to blend tracks seamlessly — songs with similar tempos get a smooth crossfade, while different tempos get a quick cut. Crossfade uses a fixed duration you choose."
         )
       }
       Section {
@@ -48,67 +50,78 @@ struct SettingsView: View {
       } footer: {
         Text("When enabled, songs you play are saved for offline listening.")
       }
-      Section("Karaoke") {
-        Toggle("Vocal Removal", isOn: $audioManager.karaokeMode)
-          .tint(.appAccent)
-        if audioManager.karaokeMode {
-          HStack {
-            Text("Strength")
-            Spacer()
-            Text(vocalStrengthLabel)
-              .foregroundStyle(.secondary)
-          }
-          GeometryReader { geo in
-            ZStack(alignment: .leading) {
-              Capsule()
-                .fill(Color.primary.opacity(0.15))
-              Capsule()
-                .fill(Color.appAccent)
-                .frame(width: max(8, geo.size.width * CGFloat(audioManager.karaokeStrength)))
+      if DeviceCapability.supportsKaraoke {
+        Section {
+          Toggle("Vocal Removal", isOn: $audioManager.karaokeMode)
+            .tint(.appAccent)
+          if audioManager.karaokeMode {
+            HStack {
+              Text("Removal Level")
+              Spacer()
+              Text(aiStrengthLabel)
+                .foregroundStyle(.secondary)
             }
-            .frame(height: 6)
-            .frame(maxHeight: .infinity, alignment: .center)
-            .contentShape(Rectangle())
-            .gesture(
-              DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                  let v = max(0, min(1, value.location.x / geo.size.width))
-                  audioManager.karaokeStrength = Float(v)
-                }
-            )
+            StrengthSlider(value: $audioManager.aiVocalStrength)
           }
-          .frame(height: 28)
-        }
-        Toggle("Bass Enhance", isOn: $audioManager.bassEnhanceMode)
-          .tint(.appAccent)
-        if audioManager.bassEnhanceMode {
-          HStack {
-            Text("Strength")
-            Spacer()
-            Text(bassStrengthLabel)
-              .foregroundStyle(.secondary)
-          }
-          GeometryReader { geo in
-            ZStack(alignment: .leading) {
-              Capsule()
-                .fill(Color.primary.opacity(0.15))
-              Capsule()
-                .fill(Color.appAccent)
-                .frame(width: max(8, geo.size.width * CGFloat(audioManager.bassEnhanceStrength)))
+          Toggle("Bass Enhance", isOn: $audioManager.bassEnhanceMode)
+            .tint(.appAccent)
+          if audioManager.bassEnhanceMode {
+            HStack {
+              Text("Strength")
+              Spacer()
+              Text(bassStrengthLabel)
+                .foregroundStyle(.secondary)
             }
-            .frame(height: 6)
-            .frame(maxHeight: .infinity, alignment: .center)
-            .contentShape(Rectangle())
-            .gesture(
-              DragGesture(minimumDistance: 0)
-                .onChanged { value in
-                  let v = max(0, min(1, value.location.x / geo.size.width))
-                  audioManager.bassEnhanceStrength = Float(v)
-                }
-            )
+            StrengthSlider(value: $audioManager.bassEnhanceStrength)
           }
-          .frame(height: 28)
+          Toggle("Vocal Enhance", isOn: $audioManager.vocalEnhanceMode)
+            .tint(.appAccent)
+          if audioManager.vocalEnhanceMode {
+            HStack {
+              Text("Strength")
+              Spacer()
+              Text(vocalEnhanceStrengthLabel)
+                .foregroundStyle(.secondary)
+            }
+            StrengthSlider(value: $audioManager.vocalEnhanceStrength)
+          }
+          Toggle("Instrumental Enhance", isOn: $audioManager.backgroundEnhanceMode)
+            .tint(.appAccent)
+          if audioManager.backgroundEnhanceMode {
+            HStack {
+              Text("Strength")
+              Spacer()
+              Text(backgroundEnhanceStrengthLabel)
+                .foregroundStyle(.secondary)
+            }
+            StrengthSlider(value: $audioManager.backgroundEnhanceStrength)
+          }
+        } header: {
+          Text("Karaoke")
+        } footer: {
+          Text("Powered by on-device AI. Audio is separated into vocals and instrumentals in real time — the first use on a song may take a moment to process.")
         }
+      }
+      Section {
+        Toggle("Equalizer", isOn: $audioManager.eqEnabled)
+          .tint(.appAccent)
+        if audioManager.eqEnabled {
+          Picker("Preset", selection: $audioManager.eqPreset) {
+            ForEach(EQPreset.allCases.filter { $0 != .custom || audioManager.eqPreset == .custom }) { preset in
+              Text(preset.rawValue).tag(preset)
+            }
+          }
+          EqualizerBands(gainsDB: $audioManager.eqGainsDB)
+            .padding(.vertical, 8)
+          Button("Reset Equalizer") {
+            audioManager.eqPreset = .flat
+          }
+          .foregroundStyle(Color.appAccent)
+        }
+      } header: {
+        Text("Equalizer")
+      } footer: {
+        Text("10-band parametric EQ. Drag each band between −12 dB and +12 dB.")
       }
       Section("Appearance") {
         Toggle("Respect Reduce Motion", isOn: $respectReducedMotion)
@@ -116,12 +129,17 @@ struct SettingsView: View {
       }
       Section {
         Button(role: .destructive) {
-          DownloadManager.shared.removeAll()
+          pendingAction = .removeDownloads
         } label: {
           Text("Remove All Downloads")
         }
         Button(role: .destructive) {
-          RecentlyPlayedStore.shared.reset()
+          pendingAction = .clearCache
+        } label: {
+          Text("Clear All Cache")
+        }
+        Button(role: .destructive) {
+          pendingAction = .clearRecentlyPlayed
         } label: {
           Text("Clear Recently Played")
         }
@@ -131,12 +149,52 @@ struct SettingsView: View {
     }
     .navigationTitle("Settings")
     .navigationBarTitleDisplayMode(.inline)
+    .alert(
+      pendingAction?.title ?? "",
+      isPresented: Binding(
+        get: { pendingAction != nil },
+        set: { if !$0 { pendingAction = nil } }
+      ),
+      presenting: pendingAction
+    ) { action in
+      Button("Cancel", role: .cancel) {}
+        .tint(Color(uiColor: .systemBlue))
+      Button(action.actionLabel, role: .destructive) {
+        perform(action)
+      }
+    } message: { action in
+      Text(action.message)
+    }
   }
-  private var vocalStrengthLabel: String {
-    audioManager.karaokeLevel.label
+  private func perform(_ action: SettingsDestructiveAction) {
+    switch action {
+    case .removeDownloads:
+      DownloadManager.shared.removeAll()
+    case .clearCache:
+      audioManager.clearCache()
+      SDImageCache.shared.clearMemory()
+      SDImageCache.shared.clearDisk(onCompletion: nil)
+      URLCache.shared.removeAllCachedResponses()
+    case .clearRecentlyPlayed:
+      RecentlyPlayedStore.shared.reset()
+    }
+  }
+  private var aiStrengthLabel: String {
+    let s = audioManager.aiVocalStrength
+    if s >= 0.99 { return "Maximum" }
+    if s >= 0.75 { return "Strong" }
+    if s >= 0.45 { return "Medium" }
+    if s >= 0.15 { return "Light" }
+    return "Off"
   }
   private var bassStrengthLabel: String {
     strengthText(audioManager.bassEnhanceStrength)
+  }
+  private var vocalEnhanceStrengthLabel: String {
+    strengthText(audioManager.vocalEnhanceStrength)
+  }
+  private var backgroundEnhanceStrengthLabel: String {
+    strengthText(audioManager.backgroundEnhanceStrength)
   }
   private func strengthText(_ v: Float) -> String {
     if v < 0.15 { return "Almost off" }
@@ -144,6 +202,156 @@ struct SettingsView: View {
     if v < 0.75 { return "Medium" }
     if v < 0.95 { return "Strong" }
     return "Maximum"
+  }
+}
+
+private struct StrengthSlider: View {
+  @Binding var value: Float
+  var body: some View {
+    GeometryReader { geo in
+      ZStack(alignment: .leading) {
+        Capsule()
+          .fill(Color.primary.opacity(0.15))
+        Capsule()
+          .fill(Color.appAccent)
+          .frame(width: max(8, geo.size.width * CGFloat(value)))
+      }
+      .frame(height: 6)
+      .frame(maxHeight: .infinity, alignment: .center)
+      .contentShape(Rectangle())
+      .gesture(
+        DragGesture(minimumDistance: 0)
+          .onChanged { drag in
+            let v = max(0, min(1, drag.location.x / geo.size.width))
+            value = Float(v)
+          }
+      )
+    }
+    .frame(height: 28)
+  }
+}
+
+private struct EqualizerBands: View {
+  @Binding var gainsDB: [Float]
+  private let range: ClosedRange<Float> = -12...12
+  var body: some View {
+    HStack(alignment: .bottom, spacing: 6) {
+      ForEach(0..<AudioKitPlayback.eqBandCount, id: \.self) { i in
+        VStack(spacing: 6) {
+          Text(gainLabel(gainsDB[i]))
+            .font(.system(size: 9, weight: .medium, design: .monospaced))
+            .foregroundStyle(.secondary)
+            .frame(height: 12)
+          EqualizerBand(value: bandBinding(i), range: range)
+            .frame(maxWidth: .infinity)
+            .frame(height: 140)
+          Text(frequencyLabel(Double(AudioKitPlayback.bandFrequencies[i])))
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(.secondary)
+            .frame(height: 12)
+        }
+      }
+    }
+  }
+  private func bandBinding(_ i: Int) -> Binding<Float> {
+    Binding(
+      get: { gainsDB.indices.contains(i) ? gainsDB[i] : 0 },
+      set: { newValue in
+        guard gainsDB.indices.contains(i) else { return }
+        var copy = gainsDB
+        copy[i] = newValue
+        gainsDB = copy
+      }
+    )
+  }
+  private func gainLabel(_ db: Float) -> String {
+    if abs(db) < 0.05 { return "0" }
+    return String(format: "%+.0f", db)
+  }
+  private func frequencyLabel(_ hz: Double) -> String {
+    if hz >= 1000 {
+      let k = hz / 1000
+      if k.truncatingRemainder(dividingBy: 1) == 0 {
+        return "\(Int(k))k"
+      }
+      return String(format: "%.1fk", k)
+    }
+    return "\(Int(hz))"
+  }
+}
+
+private struct EqualizerBand: View {
+  @Binding var value: Float
+  let range: ClosedRange<Float>
+  var body: some View {
+    GeometryReader { geo in
+      let span = range.upperBound - range.lowerBound
+      let normalized = (value - range.lowerBound) / span
+      let trackHeight = geo.size.height
+      let knobY = trackHeight - CGFloat(normalized) * trackHeight
+      let zeroY = trackHeight - CGFloat((0 - range.lowerBound) / span) * trackHeight
+      ZStack(alignment: .top) {
+        Capsule()
+          .fill(Color.primary.opacity(0.15))
+          .frame(width: 4)
+          .frame(maxWidth: .infinity)
+        if value >= 0 {
+          Capsule()
+            .fill(Color.appAccent)
+            .frame(width: 4, height: max(0, zeroY - knobY))
+            .offset(y: knobY)
+        } else {
+          Capsule()
+            .fill(Color.appAccent)
+            .frame(width: 4, height: max(0, knobY - zeroY))
+            .offset(y: zeroY)
+        }
+        Circle()
+          .fill(Color.appAccent)
+          .frame(width: 18, height: 18)
+          .offset(y: knobY - 9)
+      }
+      .contentShape(Rectangle())
+      .gesture(
+        DragGesture(minimumDistance: 0)
+          .onChanged { drag in
+            let y = max(0, min(trackHeight, drag.location.y))
+            let n = 1 - (y / trackHeight)
+            value = Float(range.lowerBound) + Float(n) * span
+          }
+      )
+    }
+  }
+}
+
+private enum SettingsDestructiveAction {
+  case removeDownloads
+  case clearCache
+  case clearRecentlyPlayed
+  var title: String {
+    switch self {
+    case .removeDownloads: return "Remove all downloads?"
+    case .clearCache: return "Clear all cache?"
+    case .clearRecentlyPlayed: return "Clear recently played?"
+    }
+  }
+  var message: String {
+    switch self {
+    case .removeDownloads:
+      return "All offline downloads will be deleted from this device."
+    case .clearCache:
+      return
+        "Cached playback files and images will be removed. Songs and artwork will redownload as you use the app."
+    case .clearRecentlyPlayed:
+      return "Your recently played history will be cleared."
+    }
+  }
+  var actionLabel: String {
+    switch self {
+    case .removeDownloads: return "Remove All Downloads"
+    case .clearCache: return "Clear All Cache"
+    case .clearRecentlyPlayed: return "Clear Recently Played"
+    }
   }
 }
 

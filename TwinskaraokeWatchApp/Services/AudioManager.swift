@@ -32,6 +32,7 @@ class AudioManager: ObservableObject {
   private var endTimeObserver: NSObjectProtocol?
   private var cancellables = Set<AnyCancellable>()
   private var downloadTask: URLSessionDownloadTask?
+  private var recoveringFromBrokenCache: Set<String> = []
   private static let audioCacheDir: URL = {
     let dir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
       .appendingPathComponent("AudioCache")
@@ -68,7 +69,8 @@ class AudioManager: ObservableObject {
     guard let song = currentSong else { return }
     let localURL = localCacheURL(for: song.id)
     if FileManager.default.fileExists(atPath: localURL.path) {
-      setupPlayer(with: localURL)
+      isLoading = true
+      validateCacheAndPlay(song: song, cacheURL: localURL)
       return
     }
     guard let remoteURL = song.audioURL else { return }
@@ -116,7 +118,9 @@ class AudioManager: ObservableObject {
           self.updateNowPlayingInfo()
         } else if status == .failed {
           self.isLoading = false
-          self.playNext()
+          if !self.recoverFromBrokenCache(playbackURL: localURL) {
+            self.playNext()
+          }
         }
       }
       .store(in: &cancellables)
@@ -210,6 +214,103 @@ class AudioManager: ObservableObject {
   }
   private func localCacheURL(for songID: String) -> URL {
     AudioManager.audioCacheDir.appendingPathComponent("\(songID).mp3")
+  }
+  func clearCache() {
+    downloadTask?.cancel()
+    downloadTask = nil
+    let fm = FileManager.default
+    if let entries = try? fm.contentsOfDirectory(
+      at: AudioManager.audioCacheDir, includingPropertiesForKeys: nil)
+    {
+      for url in entries {
+        try? fm.removeItem(at: url)
+      }
+    }
+  }
+  private func validateCachedFile(
+    at url: URL, expectedDuration: Int, completion: @escaping (Bool) -> Void
+  ) {
+    let asset = AVURLAsset(url: url)
+    let expected = Double(expectedDuration)
+    asset.loadValuesAsynchronously(forKeys: ["duration", "playable"]) {
+      DispatchQueue.main.async {
+        var durationError: NSError?
+        var playableError: NSError?
+        let durationStatus = asset.statusOfValue(forKey: "duration", error: &durationError)
+        let playableStatus = asset.statusOfValue(forKey: "playable", error: &playableError)
+        let actual = asset.duration.seconds
+        let durationOK: Bool
+        if expected > 5 {
+          durationOK = actual.isFinite && actual >= expected * 0.9
+        } else {
+          durationOK = actual.isFinite && actual > 0
+        }
+        let valid =
+          durationStatus == .loaded && playableStatus == .loaded
+          && durationError == nil && playableError == nil
+          && asset.isPlayable && durationOK
+        completion(valid)
+      }
+    }
+  }
+  private func validateCacheAndPlay(song: Song, cacheURL: URL) {
+    let songID = song.id
+    validateCachedFile(at: cacheURL, expectedDuration: song.duration) { [weak self] valid in
+      guard let self, self.currentSong?.id == songID else { return }
+      if valid {
+        self.setupPlayer(with: cacheURL)
+        return
+      }
+      try? FileManager.default.removeItem(at: cacheURL)
+      guard let remoteURL = song.audioURL else {
+        self.isLoading = false
+        return
+      }
+      self.downloadTask = URLSession.shared.downloadTask(with: remoteURL) {
+        [weak self] tempURL, _, error in
+        DispatchQueue.main.async {
+          guard let self = self else { return }
+          self.isLoading = false
+          guard let tempURL = tempURL, error == nil else { return }
+          try? FileManager.default.moveItem(at: tempURL, to: cacheURL)
+          guard self.currentSong?.id == songID else { return }
+          self.evictOldCacheFiles()
+          self.setupPlayer(with: cacheURL)
+        }
+      }
+      self.downloadTask?.resume()
+    }
+  }
+  @discardableResult
+  private func recoverFromBrokenCache(playbackURL: URL) -> Bool {
+    guard playbackURL.path.hasPrefix(AudioManager.audioCacheDir.path),
+      let song = currentSong,
+      !recoveringFromBrokenCache.contains(song.id),
+      let remoteURL = song.audioURL
+    else { return false }
+    let songID = song.id
+    recoveringFromBrokenCache.insert(songID)
+    try? FileManager.default.removeItem(at: playbackURL)
+    cleanupPlayer()
+    isLoading = true
+    downloadTask?.cancel()
+    downloadTask = URLSession.shared.downloadTask(with: remoteURL) {
+      [weak self] tempURL, _, error in
+      DispatchQueue.main.async {
+        guard let self = self else { return }
+        self.isLoading = false
+        guard let tempURL = tempURL, error == nil else { return }
+        try? FileManager.default.moveItem(at: tempURL, to: playbackURL)
+        guard self.currentSong?.id == songID else { return }
+        self.evictOldCacheFiles()
+        self.setupPlayer(with: playbackURL)
+      }
+    }
+    downloadTask?.resume()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+      self?.recoveringFromBrokenCache.remove(songID)
+    }
+    return true
   }
   private func evictOldCacheFiles() {
     let fm = FileManager.default

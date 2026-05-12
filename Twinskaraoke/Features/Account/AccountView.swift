@@ -5,6 +5,7 @@ struct AccountView: View {
   @EnvironmentObject var audioManager: AudioPlayerManager
   @State private var showLoginSheet = false
   @State private var showQRApprove = false
+  @State private var showSignOutConfirm = false
   @State private var profile: Profile?
   @State private var badges: [Badge] = []
   @State private var uploadLimits: UploadLimits?
@@ -106,7 +107,7 @@ struct AccountView: View {
   private var signOutSection: some View {
     Section {
       Button(role: .destructive) {
-        auth.logout()
+        showSignOutConfirm = true
       } label: {
         HStack {
           Spacer()
@@ -114,6 +115,15 @@ struct AccountView: View {
             .foregroundStyle(Color.appAccent)
           Spacer()
         }
+      }
+      .alert("Sign out?", isPresented: $showSignOutConfirm) {
+        Button("Cancel", role: .cancel) {}
+          .tint(Color(uiColor: .systemBlue))
+        Button("Sign Out", role: .destructive) {
+          auth.logout()
+        }
+      } message: {
+        Text("You'll need to sign in again to access your library.")
       }
     }
   }

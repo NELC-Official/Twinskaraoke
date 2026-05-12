@@ -1,14 +1,20 @@
 import SwiftUI
 
+extension Playlist: Hashable {
+  public static func == (lhs: Playlist, rhs: Playlist) -> Bool { lhs.id == rhs.id }
+  public func hash(into hasher: inout Hasher) { hasher.combine(id) }
+}
+
 struct LibraryView: View {
   @StateObject var viewModel = PlaylistsViewModel()
   @ObservedObject private var savedStore = SavedPlaylistsStore.shared
   @ObservedObject private var addedTracker = RecentlyAddedTracker.shared
   @ObservedObject private var favorites = FavoritesManager.shared
+  @State private var path = NavigationPath()
   let cols = [GridItem(.flexible(), spacing: 16), GridItem(.flexible(), spacing: 16)]
   var body: some View {
     let recents = viewModel.recentlyAddedPlaylists(saved: savedStore.playlists)
-    NavigationStack {
+    NavigationStack(path: $path) {
       List {
         Section {
           NavigationLink {
@@ -64,16 +70,21 @@ struct LibraryView: View {
         }
         if !recents.isEmpty {
           Section {
-            RecentlyAddedSection(playlists: recents)
-              .listRowInsets(EdgeInsets())
-              .listRowBackground(Color.clear)
-              .listRowSeparator(.hidden)
+            RecentlyAddedSection(playlists: recents) { playlist in
+              path.append(playlist)
+            }
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
           }
-          .listSectionSpacing(.compact)
+          .listSectionSpacing(8)
         }
       }
       .listStyle(.insetGrouped)
       .navigationTitle("Library")
+      .navigationDestination(for: Playlist.self) { playlist in
+        PlaylistDetailView(playlist: playlist)
+      }
       .onAppear {
         viewModel.fetchPlaylists()
         viewModel.fetchFavoriteSongs()
@@ -185,6 +196,7 @@ struct PlaylistGridCell: View {
 
 struct RecentlyAddedSection: View {
   let playlists: [Playlist]
+  let onSelect: (Playlist) -> Void
   private let cols = [
     GridItem(.flexible(), spacing: 14),
     GridItem(.flexible(), spacing: 14),
@@ -195,16 +207,17 @@ struct RecentlyAddedSection: View {
         .font(.system(size: 22, weight: .bold))
         .foregroundColor(.primary)
         .padding(.horizontal, 16)
-        .padding(.top, 8)
       LazyVGrid(columns: cols, spacing: 22) {
         ForEach(playlists) { playlist in
-          NavigationLink(destination: PlaylistDetailView(playlist: playlist)) {
+          Button {
+            onSelect(playlist)
+          } label: {
             RecentlyAddedTile(playlist: playlist)
           }
           .buttonStyle(.plain)
         }
       }
-      .padding(.horizontal, 16)
+      .padding(.horizontal, 8)
       .padding(.bottom, 16)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
@@ -225,7 +238,7 @@ struct RecentlyAddedTile: View {
           .font(.system(size: 16, weight: .semibold))
           .foregroundColor(.primary)
           .lineLimit(1)
-        Text("Playlist")
+        Text("\(playlist.songCount) songs")
           .font(.system(size: 14))
           .foregroundColor(.secondary)
           .lineLimit(1)

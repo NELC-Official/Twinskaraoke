@@ -1,6 +1,15 @@
 {
-  "originHash" : "e7ebbed95318520a33cc7f9aacbced84e53b47944edd224c39d8eca2823fcc24",
+  "originHash" : "4afd691665d94c667f2d1b9624e0c26db733582df026521088b221f52dd4ed68",
   "pins" : [
+    {
+      "identity" : "audiokit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/AudioKit",
+      "state" : {
+        "revision" : "97a35fe04cd8e3d13b8744e1216b8673f825bef6",
+        "version" : "5.7.2"
+      }
+    },
     {
       "identity" : "lnpopupcontroller",
       "kind" : "remoteSourceControl",
@@ -44,6 +53,15 @@
       "state" : {
         "revision" : "0e331457ca9af2f0b08bcaa138a91ffb907b004f",
         "version" : "3.1.4"
+      }
+    },
+    {
+      "identity" : "swift-spleeter",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jiyimeta/swift-spleeter",
+      "state" : {
+        "revision" : "bb101655260b2262fe84d3f6b9478a9812884faa",
+        "version" : "0.2.0"
       }
     }
   ],
