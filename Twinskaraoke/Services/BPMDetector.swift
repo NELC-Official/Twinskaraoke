@@ -2,18 +2,8 @@ import Accelerate
 import AVFoundation
 import Foundation
 
-/// On-device BPM detection using Accelerate/vDSP.
-///
-/// Analyzes ~30 seconds from the middle of a track (skipping intro/outro),
-/// computes an onset-strength envelope, autocorrelates it, and picks the
-/// strongest peak in the 60–200 BPM range.
 enum BPMDetector {
 
-  // MARK: - Public API
-
-  /// Detect the BPM of the audio file at `url`.
-  /// Runs on a background thread (~0.3–0.8 s for a typical MP3).
-  /// Returns `nil` when the file can't be decoded or confidence is too low.
   static func detect(url: URL) async -> Double? {
     await withCheckedContinuation { continuation in
       DispatchQueue.global(qos: .utility).async {
@@ -23,31 +13,19 @@ enum BPMDetector {
     }
   }
 
-  // MARK: - Internal
-
-  /// Analysis sample rate — we downsample to mono 22 050 Hz for efficiency.
   private static let analysisSR: Double = 22050
 
-  /// Hop size in samples for the onset envelope (~11.6 ms per frame).
   private static let hopSize: Int = 256
 
-  /// Window size in samples for RMS energy frames.
   private static let windowSize: Int = 1024
 
-  /// Duration (seconds) of audio to analyze.
   private static let analysisSeconds: Double = 30
 
-  /// Minimum BPM we'll consider.
   private static let minBPM: Double = 60
 
-  /// Maximum BPM we'll consider.
   private static let maxBPM: Double = 200
 
-  /// The peak must be at least this factor above the median autocorrelation
-  /// to be accepted as a confident detection.
   private static let confidenceThreshold: Float = 1.4
-
-  // MARK: - Synchronous pipeline
 
   private static func detectSync(url: URL) -> Double? {
     guard let samples = loadMonoSamples(url: url) else { return nil }
@@ -58,8 +36,6 @@ enum BPMDetector {
 
     return bpmFromAutocorrelation(envelope)
   }
-
-  // MARK: - Step 1: Load & downsample to mono
 
   private static func loadMonoSamples(url: URL) -> [Float]? {
     let asset = AVURLAsset(url: url)
@@ -78,10 +54,8 @@ enum BPMDetector {
     let output = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
     reader.add(output)
 
-    // Seek to the middle of the track, skipping intro/outro.
     let totalSeconds = asset.duration.seconds
     guard totalSeconds > 5 else {
-      // Very short file — analyze the whole thing.
       return readAllSamples(reader: reader, output: output, maxFrames: nil)
     }
     let analysisLen = min(analysisSeconds, totalSeconds * 0.6)
@@ -125,15 +99,10 @@ enum BPMDetector {
     return all.isEmpty ? nil : all
   }
 
-  // MARK: - Step 2: Onset-strength envelope
-
-  /// Compute frame-by-frame RMS energy, then first-order difference (half-wave rectified)
-  /// to get an onset-strength signal.
   private static func onsetEnvelope(_ samples: [Float]) -> [Float] {
     let frameCount = (samples.count - windowSize) / hopSize + 1
     guard frameCount > 1 else { return [] }
 
-    // RMS energy per frame
     var rms = [Float](repeating: 0, count: frameCount)
     for i in 0..<frameCount {
       let offset = i * hopSize
@@ -147,7 +116,6 @@ enum BPMDetector {
       rms[i] = val
     }
 
-    // First-order difference, half-wave rectified → onset strength
     var onset = [Float](repeating: 0, count: frameCount - 1)
     for i in 0..<onset.count {
       let diff = rms[i + 1] - rms[i]
@@ -156,19 +124,14 @@ enum BPMDetector {
     return onset
   }
 
-  // MARK: - Step 3: Autocorrelation → BPM
-
   private static func bpmFromAutocorrelation(_ envelope: [Float]) -> Double? {
     let n = envelope.count
-    // Onset envelope frame rate
     let onsetSR = analysisSR / Double(hopSize)
 
-    // Lag range corresponding to BPM range
     let minLag = Int(onsetSR * 60.0 / maxBPM)
     let maxLag = Int(onsetSR * 60.0 / minBPM)
     guard minLag >= 1, maxLag < n, minLag < maxLag else { return nil }
 
-    // Compute normalized autocorrelation for the lag range
     let lagCount = maxLag - minLag + 1
     var acf = [Float](repeating: 0, count: lagCount)
 
@@ -188,12 +151,10 @@ enum BPMDetector {
       }
     }
 
-    // Find the peak
     var peakVal: Float = 0
     var peakIdx: vDSP_Length = 0
     vDSP_maxvi(acf, 1, &peakVal, &peakIdx, vDSP_Length(lagCount))
 
-    // Confidence check: peak should be significantly above the median
     var sorted = acf
     vDSP_vsort(&sorted, vDSP_Length(lagCount), 1)
     let medianVal = sorted[lagCount / 2]
@@ -203,12 +164,9 @@ enum BPMDetector {
     guard bestLag > 0 else { return nil }
     let bpm = onsetSR * 60.0 / Double(bestLag)
 
-    // Normalize to the 60–200 range (handle octave errors)
     return normalizedBPM(bpm)
   }
 
-  /// If the detected BPM is outside 60–200, try halving or doubling to bring
-  /// it into range (handles common octave-error from autocorrelation).
   private static func normalizedBPM(_ raw: Double) -> Double? {
     if raw >= minBPM && raw <= maxBPM { return raw }
     let doubled = raw * 2

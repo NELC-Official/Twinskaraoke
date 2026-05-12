@@ -1,15 +1,7 @@
 import Foundation
 
-/// Orchestrates BPM-based auto-mix and crossfade transitions between songs.
-///
-/// The coordinator is polled every 0.5 s from `AudioPlayerManager`'s timer.
-/// It progresses through states: idle → preparing → ready → crossfading,
-/// determining the next song, detecting BPM, pre-downloading audio, and
-/// finally triggering the crossfade at the right moment.
 @MainActor
 final class TransitionCoordinator {
-
-  // MARK: - Types
 
   enum State {
     case idle
@@ -36,31 +28,19 @@ final class TransitionCoordinator {
     let rampStyle: AudioKitPlayback.RampStyle
   }
 
-  // MARK: - Properties
-
   private(set) var state: State = .idle
   private var bpmTask: Task<Void, Never>?
   private var predownloadSession: PredownloadSession?
 
-  /// Weak reference to the audio engine — set during integration.
   weak var audioKit: AudioKitPlayback?
 
-  /// Called when the coordinator wants to start playing the next song
-  /// (either crossfade or quick-cut for AI mode).
   var onBeginTransition: ((TransitionPlan) -> Void)?
 
-  /// Called when the coordinator determines the upcoming song (for UI display).
   var onUpcomingSongDetermined: ((Song?) -> Void)?
 
-  // MARK: - Configuration
-
-  /// How far before the end (seconds) to start preparing the next song.
   private let prepareLeadTime: TimeInterval = 30
 
-  /// Minimum lead time for very short songs (fraction of duration).
   private let prepareLeadFraction: Double = 0.5
-
-  // MARK: - BPM cache
 
   private var bpmCache: [String: Double] = {
     UserDefaults.standard.dictionary(forKey: "nk.bpmCache") as? [String: Double] ?? [:]
@@ -72,15 +52,12 @@ final class TransitionCoordinator {
 
   private func storeBPM(_ bpm: Double, for songID: String) {
     bpmCache[songID] = bpm
-    // Persist — cap at 500 entries to avoid unbounded growth.
     if bpmCache.count > 500 {
       let keysToRemove = Array(bpmCache.keys.prefix(bpmCache.count - 500))
       for key in keysToRemove { bpmCache.removeValue(forKey: key) }
     }
     UserDefaults.standard.set(bpmCache, forKey: "nk.bpmCache")
   }
-
-  // MARK: - Poll (called every 0.5 s from AudioPlayerManager)
 
   func poll(
     currentTime: TimeInterval,
@@ -105,7 +82,6 @@ final class TransitionCoordinator {
     switch state {
     case .idle:
       guard remaining <= prepareAt, remaining > 0 else { return }
-      // Determine next song
       if let nextSong = nextSongInQueue(current: currentSong, queue: queue) {
         beginPreparing(
           nextSong: nextSong, currentSong: currentSong,
@@ -113,27 +89,20 @@ final class TransitionCoordinator {
           aiEffectActive: aiEffectActive
         )
       }
-      // If no next song and autoplay is on, the fallback in playNextOrRandom
-      // will fetch a random trending song — we don't interfere.
 
     case .preparing:
-      // Still waiting for BPM detection / pre-download to finish.
       break
 
     case .ready(let plan):
-      // Check if it's time to trigger.
       if remaining <= plan.fadeDuration + 0.5 {
         state = .crossfading(plan: plan)
         onBeginTransition?(plan)
       }
 
     case .crossfading:
-      // Already in progress — nothing to do.
       break
     }
   }
-
-  // MARK: - Preparation
 
   private func beginPreparing(
     nextSong: Song, currentSong: Song,
@@ -147,11 +116,9 @@ final class TransitionCoordinator {
     bpmTask = Task { [weak self] in
       guard let self else { return }
 
-      // Detect BPM for both songs concurrently.
       let currentURL = self.audioFileURL(for: currentSong)
       let nextURL = self.audioFileURL(for: nextSong)
 
-      // Start pre-downloading the next song if not cached.
       if nextURL == nil, let remoteURL = nextSong.audioURL {
         await self.predownload(song: nextSong, from: remoteURL)
       }
@@ -165,13 +132,11 @@ final class TransitionCoordinator {
 
       if Task.isCancelled { return }
 
-      // Compute fade parameters.
       let fadeDuration: TimeInterval
       let rampStyle: AudioKitPlayback.RampStyle
 
       if autoMixEnabled {
         if aiEffectActive {
-          // AI effects active — quick cut, no real crossfade.
           fadeDuration = 0.5
           rampStyle = .linear
         } else {
@@ -180,13 +145,11 @@ final class TransitionCoordinator {
           rampStyle = result.style
         }
       } else {
-        // Crossfade mode — user-configured duration.
         fadeDuration = crossfadeSeconds
         rampStyle = .equalPower
       }
 
       guard let fileURL = self.audioFileURL(for: nextSong) else {
-        // File not available — fall back to normal playNextOrRandom.
         await MainActor.run { [weak self] in self?.reset() }
         return
       }
@@ -202,18 +165,12 @@ final class TransitionCoordinator {
 
       await MainActor.run { [weak self] in
         guard let self else { return }
-        // Make sure we're still preparing the same song.
         guard case .preparing(let s) = self.state, s.id == nextSong.id else { return }
         self.state = .ready(plan: plan)
-        // Pre-load the next song into the crossfade player now (seconds
-        // before the actual crossfade triggers) so beginCrossfade() can
-        // skip the synchronous file I/O entirely.
         self.audioKit?.preloadCrossfade(url: fileURL)
       }
     }
   }
-
-  // MARK: - BPM detection (with cache)
 
   private func detectBPM(for song: Song, fileURL: URL?) async -> Double? {
     if let cached = bpmCache[song.id] { return cached }
@@ -225,9 +182,6 @@ final class TransitionCoordinator {
     return bpm
   }
 
-  // MARK: - Tempo-matched blending
-
-  /// Compute fade duration and ramp style from BPM similarity.
   static func computeFade(
     outBPM: Double?, inBPM: Double?
   ) -> (duration: TimeInterval, style: AudioKitPlayback.RampStyle) {
@@ -236,26 +190,19 @@ final class TransitionCoordinator {
     }
     let diff = harmonicBPMDifference(out, inB)
     if diff <= 8 {
-      // Close tempos — long smooth blend, beat-aligned.
       let beatDur = 60.0 / out
       let targetBeats = max(4, (8.0 / beatDur).rounded())
       return (targetBeats * beatDur, .equalPower)
     } else if diff <= 20 {
-      // Moderate difference — 4 second blend.
       return (4.0, .equalPower)
     } else {
-      // Very different tempos — quick cut.
       return (1.5, .linear)
     }
   }
 
-  /// Harmonic BPM difference accounting for half/double time.
-  /// e.g. 70 BPM ≈ 140 BPM (difference = 0, not 70).
   static func harmonicBPMDifference(_ a: Double, _ b: Double) -> Double {
     [b, b * 2, b / 2].map { abs(a - $0) }.min()!
   }
-
-  // MARK: - File resolution
 
   private func audioFileURL(for song: Song) -> URL? {
     let downloaded = DownloadManager.shared.localURL(for: song.id)
@@ -265,15 +212,11 @@ final class TransitionCoordinator {
     return nil
   }
 
-  // MARK: - Next song determination
-
   private func nextSongInQueue(current: Song, queue: [Song]) -> Song? {
     guard !queue.isEmpty, let idx = queue.firstIndex(of: current) else { return nil }
     if idx + 1 < queue.count { return queue[idx + 1] }
     return nil
   }
-
-  // MARK: - Pre-download
 
   private func predownload(song: Song, from remoteURL: URL) async {
     await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
@@ -287,8 +230,6 @@ final class TransitionCoordinator {
     }
   }
 
-  // MARK: - Reset
-
   func reset() {
     bpmTask?.cancel()
     bpmTask = nil
@@ -299,10 +240,6 @@ final class TransitionCoordinator {
   }
 }
 
-// MARK: - Pre-download helper
-
-/// Lightweight download that streams to the audio cache.
-/// Reuses the same cache directory as `AudioDownloadSession`.
 private final class PredownloadSession: NSObject, URLSessionDataDelegate {
   private let songID: String
   private let partialURL: URL
@@ -321,7 +258,6 @@ private final class PredownloadSession: NSObject, URLSessionDataDelegate {
   }
 
   func start(from remoteURL: URL) {
-    // Don't re-download if already cached.
     if FileManager.default.fileExists(atPath: finalURL.path) {
       onCompletion?()
       return

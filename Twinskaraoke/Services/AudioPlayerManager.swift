@@ -113,8 +113,6 @@ class AudioPlayerManager: ObservableObject {
   @Published var isRadioMode: Bool = false
   @Published var radioArtworkURL: URL?
 
-  // MARK: - Karaoke (AI vocal removal)
-
   @Published var karaokeMode: Bool = false {
     didSet {
       guard !_suppressModeSwitch else { return }
@@ -140,8 +138,6 @@ class AudioPlayerManager: ObservableObject {
     return Float(min(1, max(0, raw)))
   }
 
-  // MARK: - Bass enhance (AI)
-
   @Published var bassEnhanceMode: Bool = false {
     didSet {
       guard !_suppressModeSwitch else { return }
@@ -157,8 +153,6 @@ class AudioPlayerManager: ObservableObject {
       applyAIMixVolumes()
     }
   }
-
-  // MARK: - Vocal enhance (AI)
 
   @Published var vocalEnhanceMode: Bool = false {
     didSet {
@@ -176,8 +170,6 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  // MARK: - Background sound enhance (AI)
-
   @Published var backgroundEnhanceMode: Bool = false {
     didSet {
       guard !_suppressModeSwitch else { return }
@@ -193,8 +185,6 @@ class AudioPlayerManager: ObservableObject {
       applyAIMixVolumes()
     }
   }
-
-  // MARK: - EQ
 
   @Published var eqEnabled: Bool = UserDefaults.standard.bool(forKey: "nk.eqEnabled") {
     didSet {
@@ -227,8 +217,6 @@ class AudioPlayerManager: ObservableObject {
       }
     }
   }
-
-  // MARK: - Playback transitions
 
   @Published var autoMixEnabled: Bool =
     (UserDefaults.standard.object(forKey: "nk.autoMixEnabled") as? Bool ?? true)
@@ -324,7 +312,6 @@ class AudioPlayerManager: ObservableObject {
 
     audioKit.onPlaybackEnded = { [weak self] in
       guard let self, !self.isRadioMode else { return }
-      // If a crossfade already handled the transition, don't double-advance.
       guard !self.audioKit.isCrossfading else { return }
       self.playNextOrRandom()
     }
@@ -380,8 +367,6 @@ class AudioPlayerManager: ObservableObject {
     radioPlayer?.pause()
   }
 
-  // MARK: - Mutual exclusivity
-
   private func disableOtherModes(except keep: AudioEffect) {
     _suppressModeSwitch = true
     if keep != .karaoke { karaokeMode = false }
@@ -391,10 +376,6 @@ class AudioPlayerManager: ObservableObject {
     _suppressModeSwitch = false
   }
 
-  // MARK: - AI mix volume control
-
-  /// Which effect was active when we last built the AI buffers.
-  /// If the effect changes we must rebuild, not just adjust volumes.
   private var aiEffectWhenSwapped: AudioEffect?
 
   private var currentActiveEffect: AudioEffect? {
@@ -411,19 +392,15 @@ class AudioPlayerManager: ObservableObject {
     else { return }
     audioKit.resetBassEQ()
     if karaokeMode {
-      // main = instrumental (drums+bass+other), aux = vocals
       audioKit.setMainPlayerVolume(1.0)
       audioKit.setAuxPlayerVolume(max(0, 1.0 - aiVocalStrength))
     } else if bassEnhanceMode {
-      // main = vocals+drums+other, aux = bass
       audioKit.setMainPlayerVolume(1.0)
       audioKit.setAuxPlayerVolume(1.0 + 0.5 * bassEnhanceStrength)
     } else if vocalEnhanceMode {
-      // main = instrumental (drums+bass+other), aux = vocals
       audioKit.setMainPlayerVolume(1.0)
       audioKit.setAuxPlayerVolume(1.0 + 0.5 * vocalEnhanceStrength)
     } else if backgroundEnhanceMode {
-      // main = instrumental (drums+bass+other), aux = vocals
       audioKit.setMainPlayerVolume(1.0 + 0.5 * backgroundEnhanceStrength)
       audioKit.setAuxPlayerVolume(1.0)
     } else {
@@ -431,8 +408,6 @@ class AudioPlayerManager: ObservableObject {
       audioKit.setAuxPlayerVolume(1.0)
     }
   }
-
-  // MARK: - Polling
 
   private func startPollTimer() {
     pollTimer?.invalidate()
@@ -451,7 +426,6 @@ class AudioPlayerManager: ObservableObject {
       self.progress = min(1.0, max(0.0, t / totalDur))
       self.updateNowPlayingElapsed(t)
 
-      // Drive the transition coordinator.
       if self.repeatMode != .one {
         self.transitionCoordinator.poll(
           currentTime: t,
@@ -467,8 +441,6 @@ class AudioPlayerManager: ObservableObject {
       }
     }
   }
-
-  // MARK: - Play
 
   func play(song: Song, context: [Song] = []) {
     if isRadioMode { RadioController.shared.stop() }
@@ -549,8 +521,6 @@ class AudioPlayerManager: ObservableObject {
     #endif
   }
 
-  // MARK: - Transport
-
   func togglePlayPause() {
     if isRadioMode {
       if isPlaying {
@@ -588,8 +558,6 @@ class AudioPlayerManager: ObservableObject {
   func seek(to fraction: Double) {
     guard fraction.isFinite, (0.0...1.0).contains(fraction) else { return }
     if isRadioMode { return }
-    // Prefer the actual audio duration over the metadata duration to avoid
-    // seeking past the end of the buffer, which triggers the completion handler.
     let audioDur = audioKit.duration
     let totalDur: Double
     if audioDur.isFinite, audioDur > 0 {
@@ -599,8 +567,6 @@ class AudioPlayerManager: ObservableObject {
     } else {
       return
     }
-    // Clamp target to avoid seeking within the last 1.5 seconds which can
-    // trigger the completion handler and cause an unwanted track skip.
     let target = min(totalDur * fraction, totalDur - 1.5)
     guard target >= 0 else { return }
     if !audioKit.seek(to: target) {
@@ -610,11 +576,8 @@ class AudioPlayerManager: ObservableObject {
     updateNowPlayingInfo(reloadArtwork: false)
   }
 
-  // MARK: - Queue navigation
-
   func playNextOrRandom() {
     if isRadioMode { return }
-    // If the coordinator is already crossfading, don't double-advance.
     if transitionCoordinator.state.isCrossfading { return }
     transitionCoordinator.reset()
     #if canImport(UIKit)
@@ -705,8 +668,6 @@ class AudioPlayerManager: ObservableObject {
     queue = Array(queue[..<upNextStart]) + upNext
   }
 
-  // MARK: - Radio (AVPlayer)
-
   func playRadio(streamURL: URL, song: Song, artworkURL: URL?) {
     let alreadyOnSameStation = isRadioMode && currentSong?.id == song.id
     if alreadyOnSameStation {
@@ -770,8 +731,6 @@ class AudioPlayerManager: ObservableObject {
     return song.imageURL
   }
 
-  // MARK: - Cache
-
   func clearCache() {
     downloadSession?.cancel()
     downloadSession = nil
@@ -798,13 +757,10 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  // MARK: - AI vocal separation
-
   private func applyMLSeparationIfNeeded() {
     instrumentalTask?.cancel()
     instrumentalTask = nil
     guard anyAIEffectActive, !isRadioMode, let song = currentSong else {
-      // Effect turned OFF — cancel separator and revert to normal playback immediately.
       VocalSeparator.shared.cancel()
       revertFromInstrumentalIfActive()
       return
@@ -813,30 +769,24 @@ class AudioPlayerManager: ObservableObject {
       revertFromInstrumentalIfActive()
       return
     }
-    // If we already have stems loaded for this song, check if we need to rebuild
-    // the mix (effect changed) or just adjust volumes (same effect).
     if playingInstrumentalForSongID == song.id {
       if aiEffectWhenSwapped == currentActiveEffect {
         applyAIMixVolumes()
         return
       }
-      // Effect changed — need to rebuild the mix from cached stems
       if let stems = VocalSeparator.shared.cachedStems(forSongID: song.id) {
         swapToAITrack(songID: song.id, stems: stems)
         return
       }
     }
-    // Check if we have cached stems — apply immediately
     if let stems = VocalSeparator.shared.cachedStems(forSongID: song.id) {
       swapToAITrack(songID: song.id, stems: stems)
       return
     }
-    // No cached stems — start streaming separation for progressive playback.
     VocalSeparator.shared.cancel()
     let songID = song.id
     let trimStart = audioKit.currentTime
     instrumentalTask = Task { @MainActor [weak self] in
-      // Wait for the audio file to become available (max 30 s).
       var sourceURL: URL?
       let deadline = Date().addingTimeInterval(30)
       while sourceURL == nil, Date() < deadline {
@@ -856,40 +806,26 @@ class AudioPlayerManager: ObservableObject {
       if Task.isCancelled { return }
       guard let self, self.currentSong?.id == songID, self.anyAIEffectActive else { return }
 
-      // Use streaming separation for progressive AI playback
-      if #available(iOS 18.0, *) {
-        do {
-          let stems = try await VocalSeparator.shared.separateStreaming(
-            forSongID: songID, sourceURL: sourceURL, startTime: trimStart
-          ) { [weak self] streamingStems, progress in
-            guard let self else { return }
-            await MainActor.run {
-              guard self.currentSong?.id == songID, self.anyAIEffectActive else { return }
-              self.swapToAITrackFromStreaming(songID: songID, stems: streamingStems)
-            }
-          }
-          if Task.isCancelled { return }
-          guard self.currentSong?.id == songID, self.anyAIEffectActive else { return }
-          self.swapToAITrack(songID: songID, stems: stems)
-        } catch is CancellationError {
-          return
-        } catch VocalSeparatorError.cancelled {
-          return
-        } catch VocalSeparatorError.unavailable {
-          return
-        } catch {
-          print("[Karaoke] AI streaming separation failed for \(songID): \(error)")
-          return
-        }
-      } else {
-        // Fallback for pre-iOS 18 (shouldn't happen since isAvailable checks)
+      do {
+        let stems = try await VocalSeparator.shared.separate(
+          forSongID: songID, sourceURL: sourceURL, startTime: trimStart
+        )
+        if Task.isCancelled { return }
+        guard self.currentSong?.id == songID, self.anyAIEffectActive else { return }
+        self.swapToAITrack(songID: songID, stems: stems)
+      } catch is CancellationError {
+        return
+      } catch VocalSeparatorError.cancelled {
+        return
+      } catch VocalSeparatorError.unavailable {
+        return
+      } catch {
+        print("[Karaoke] AI separation failed for \(songID): \(error)")
         return
       }
     }
   }
 
-  /// Builds the main/aux buffer pair from the 4 stems according to the active effect,
-  /// then plays them through the AudioKit engine.
   private func swapToAITrack(songID: String, stems: CachedStems) {
     let effect = currentActiveEffect
     let originalTimelineNow = audioKit.currentTime
@@ -898,7 +834,6 @@ class AudioPlayerManager: ObservableObject {
     let startOffset = stems.startOffset
     let aiTrackResume = max(0, originalTimelineNow - startOffset)
     Task.detached { [weak self] in
-      // Read all 4 stem buffers
       let vocalsBuf = AudioPlayerManager.readURLToBuffer(stems.vocals)
       let drumsBuf = AudioPlayerManager.readURLToBuffer(stems.drums)
       let bassBuf = AudioPlayerManager.readURLToBuffer(stems.bass)
@@ -908,21 +843,17 @@ class AudioPlayerManager: ObservableObject {
         print("[Karaoke] Failed to read one or more stem buffers: vocals=\(vocalsBuf != nil), drums=\(drumsBuf != nil), bass=\(bassBuf != nil), other=\(otherBuf != nil)")
       }
 
-      // Build the main and aux buffers depending on active effect
       let mainBuf: AVAudioPCMBuffer?
       let auxBuf: AVAudioPCMBuffer?
 
       switch effect {
       case .karaoke, .vocalEnhance, .backgroundEnhance:
-        // main = drums + bass + other (instrumental), aux = vocals
         mainBuf = AudioPlayerManager.mixBuffers([drumsBuf, bassBuf, otherBuf])
         auxBuf = vocalsBuf
       case .bassEnhance:
-        // main = vocals + drums + other, aux = bass
         mainBuf = AudioPlayerManager.mixBuffers([vocalsBuf, drumsBuf, otherBuf])
         auxBuf = bassBuf
       case nil:
-        // No effect active — shouldn't normally reach here
         mainBuf = AudioPlayerManager.mixBuffers([vocalsBuf, drumsBuf, bassBuf, otherBuf])
         auxBuf = nil
       }
@@ -949,60 +880,9 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  private func swapToAITrackFromStreaming(songID: String, stems: StreamingStems) {
-    let effect = currentActiveEffect
-    let originalTimelineNow = audioKit.currentTime
-    playingInstrumentalForSongID = songID
-    aiEffectWhenSwapped = effect
-    let startOffset = stems.startOffset
-    let aiTrackResume = max(0, originalTimelineNow - startOffset)
-    Task.detached { [weak self] in
-      guard let self else { return }
-      let vocalsBuf = Self.floatArrayToBuffer(stems.vocals, sampleRate: stems.sampleRate)
-      let drumsBuf = Self.floatArrayToBuffer(stems.drums, sampleRate: stems.sampleRate)
-      let bassBuf = Self.floatArrayToBuffer(stems.bass, sampleRate: stems.sampleRate)
-      let otherBuf = Self.floatArrayToBuffer(stems.other, sampleRate: stems.sampleRate)
-      guard let vocalsBuf, let drumsBuf, let bassBuf, let otherBuf else { return }
-      var mainBuf: AVAudioPCMBuffer?
-      var auxBuf: AVAudioPCMBuffer?
-      switch effect {
-      case .karaoke, .vocalEnhance, .backgroundEnhance:
-        mainBuf = Self.mixBuffers([drumsBuf, bassBuf, otherBuf])
-        auxBuf = vocalsBuf
-      case .bassEnhance:
-        mainBuf = Self.mixBuffers([vocalsBuf, drumsBuf, otherBuf])
-        auxBuf = bassBuf
-      case nil:
-        return
-      }
-      guard let mainBuf, let auxBuf else { return }
-      await MainActor.run { [weak self] in
-        guard let self, self.playingInstrumentalForSongID == songID else { return }
-        self.audioKit.playAIBuffers(
-          instrumental: mainBuf, vocals: auxBuf,
-          startOffset: startOffset, startAt: aiTrackResume)
-        self.isPlaying = true
-        self.applyAIMixVolumes()
-      }
-    }
-  }
-
-  private static func floatArrayToBuffer(_ floats: [Float], sampleRate: Double) -> AVAudioPCMBuffer? {
-    guard !floats.isEmpty else { return nil }
-    guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else { return nil }
-    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(floats.count)) else { return nil }
-    buffer.frameLength = AVAudioFrameCount(floats.count)
-    if let channelData = buffer.floatChannelData {
-      channelData[0].update(from: floats, count: floats.count)
-    }
-    return buffer
-  }
-
-  /// Mix multiple PCM buffers (same format, same length) into a single buffer by summing samples.
   private static func mixBuffers(_ buffers: [AVAudioPCMBuffer?]) -> AVAudioPCMBuffer? {
     let validBuffers = buffers.compactMap { $0 }
     guard !validBuffers.isEmpty else { return nil }
-    // Convert all to stereo first so we have a uniform format
     let stereoBuffers: [AVAudioPCMBuffer] = validBuffers.map { buf in
       AudioKitPlayback.ensureStereo(buf) ?? buf
     }
@@ -1017,7 +897,6 @@ class AudioPlayerManager: ObservableObject {
     guard let output = AVAudioPCMBuffer(pcmFormat: stereoFormat, frameCapacity: frameCount)
     else { return nil }
     output.frameLength = frameCount
-    // Zero fill
     guard let dstData = output.floatChannelData else { return nil }
     for ch in 0..<2 {
       memset(dstData[ch], 0, Int(frameCount) * MemoryLayout<Float>.size)
@@ -1052,7 +931,6 @@ class AudioPlayerManager: ObservableObject {
         }
       }
     }
-    // Fallback: decode via AVAssetReader (no Core Audio console errors)
     return AudioKitPlayback.decodeFileToBuffer(url: url)
   }
 
@@ -1083,8 +961,6 @@ class AudioPlayerManager: ObservableObject {
       isPlaying = true
     }
   }
-
-  // MARK: - Audio session / routing
 
   private func configureAudioSessionCategory() {
     do {
@@ -1178,8 +1054,6 @@ class AudioPlayerManager: ObservableObject {
       routeIcon = "airplayaudio"
     }
   }
-
-  // MARK: - Remote / Now playing
 
   private func setupRemoteCommands() {
     let cc = MPRemoteCommandCenter.shared()
@@ -1358,12 +1232,10 @@ class AudioPlayerManager: ObservableObject {
     URLSession.shared.dataTask(with: request) { _, _, _ in }.resume()
   }
 
-  /// Fetches full song metadata when the current song has empty artist info.
   private func enrichSongMetadataIfNeeded(for song: Song) {
     guard !song.hasArtistMetadata else { return }
     let songID = song.id
     guard let url = URL(string: "\(StorageHost.api)/api/explore/trendings?days=all") else { return }
-    // Use search as a lightweight way to get full song metadata
     var searchURL = URLComponents(string: "\(StorageHost.api)/api/songs")
     var request: URLRequest
     if let searchURL, let u = searchURL.url {
@@ -1380,7 +1252,6 @@ class AudioPlayerManager: ObservableObject {
     }
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
       guard let data else { return }
-      // Try search response first
       if let response = try? JSONDecoder().decode(SearchResponse.self, from: data),
         let match = response.items.first(where: { $0.id == songID })
       {
@@ -1391,7 +1262,6 @@ class AudioPlayerManager: ObservableObject {
         }
         return
       }
-      // Try array response
       if let songs = try? JSONDecoder().decode([Song].self, from: data),
         let match = songs.first(where: { $0.id == songID })
       {
@@ -1404,9 +1274,6 @@ class AudioPlayerManager: ObservableObject {
     }.resume()
   }
 
-  // MARK: - Auto-mix / crossfade transition handling
-
-  /// Called by the TransitionCoordinator when it's time to begin the crossfade.
   private func handleTransitionBegin(plan: TransitionCoordinator.TransitionPlan) {
     #if canImport(UIKit)
       beginTrackTransitionBackgroundTask()
@@ -1415,11 +1282,8 @@ class AudioPlayerManager: ObservableObject {
     activateAudioSession()
 
     if anyAIEffectActive {
-      // AI effects are active — auxPlayer is in use.  Do a quick fade-out
-      // then hard-switch to the next song (no dual-player crossfade).
       quickCutToNext(plan: plan)
     } else {
-      // Full crossfade via the dedicated crossfadePlayer.
       audioKit.beginCrossfade(
         url: plan.nextFileURL,
         duration: plan.fadeDuration,
@@ -1428,11 +1292,9 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  /// Quick-cut transition for when AI effects occupy the auxPlayer.
   private func quickCutToNext(plan: TransitionCoordinator.TransitionPlan) {
     let fadeDuration = plan.fadeDuration
     let song = plan.nextSong
-    // Fade the mixer volume to 0, then play the next song.
     let steps = Int(fadeDuration * 60)
     let interval: TimeInterval = 1.0 / 60.0
     var step = 0
@@ -1450,14 +1312,12 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  /// Called when the AudioKitPlayback crossfade finishes.
   private func transitionCoordinatorDidFinish() {
     guard case .crossfading(let plan) = transitionCoordinator.state else {
       transitionCoordinator.reset()
       return
     }
     let song = plan.nextSong
-    // Update the current song state (the audio is already playing via mainPlayer).
     reportPlayCount(for: song.id)
     enrichSongMetadataIfNeeded(for: song)
     if currentSong?.id != song.id {
@@ -1470,7 +1330,6 @@ class AudioPlayerManager: ObservableObject {
     isBuffering = false
     updateNowPlayingInfo(reloadArtwork: true)
     transitionCoordinator.reset()
-    // Re-apply AI separation if needed for the new song.
     if anyAIEffectActive {
       applyMLSeparationIfNeeded()
     }

@@ -16,30 +16,12 @@ enum VocalSeparatorError: Error {
   case readFailed
 }
 
-/// Holds URLs for all 4 cached stems of a song plus the timeline offset.
 struct CachedStems {
   let vocals: URL
   let drums: URL
   let bass: URL
   let other: URL
   let startOffset: TimeInterval
-}
-
-/// Accumulated in-memory stem float arrays from streaming separation.
-struct StreamingStems: @unchecked Sendable {
-  var vocals: [Float]
-  var drums: [Float]
-  var bass: [Float]
-  var other: [Float]
-  let sampleRate: Double
-  let startOffset: TimeInterval
-
-  mutating func append(_ chunk: Stems4<[Float]>) {
-    vocals.append(contentsOf: chunk.vocals)
-    drums.append(contentsOf: chunk.drums)
-    bass.append(contentsOf: chunk.bass)
-    other.append(contentsOf: chunk.other)
-  }
 }
 
 @MainActor
@@ -60,7 +42,6 @@ final class VocalSeparator: ObservableObject {
     return dir
   }
 
-  // Also keep old Instrumental dir path for migration / cleanup
   private static var legacyInstrumentalCacheDir: URL {
     AudioPlayerManager.audioCacheDir
       .appendingPathComponent("Instrumental", isDirectory: true)
@@ -74,15 +55,11 @@ final class VocalSeparator: ObservableObject {
     } else {
       self.isAvailable = false
     }
-    // Clean up legacy 2-stem cache
     try? FileManager.default.removeItem(at: Self.legacyInstrumentalCacheDir)
   }
 
-  // MARK: - Per-stem cached URLs
-
   private func validCachedURL(_ url: URL) -> URL? {
     guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-    // A valid WAV must be at least 44 bytes (header). Reject empty/truncated files.
     guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
       let size = attrs[.size] as? UInt64, size > 44
     else { return nil }
@@ -105,8 +82,6 @@ final class VocalSeparator: ObservableObject {
     validCachedURL(Self.stemsCacheDir.appendingPathComponent("\(songID).other.wav"))
   }
 
-  /// Returns all 4 cached stems plus the original-song time at which the stems begin.
-  /// `startOffset = 0` means the stems cover the entire song.
   func cachedStems(forSongID songID: String) -> CachedStems? {
     guard let v = cachedVocalsURL(forSongID: songID),
       let d = cachedDrumsURL(forSongID: songID),
@@ -126,9 +101,6 @@ final class VocalSeparator: ObservableObject {
     return val
   }
 
-  /// Run Spleeter 4-stem separation on `sourceURL`. When `startTime > 0` the
-  /// source is trimmed first so only the tail (startTime…end) is processed,
-  /// cutting work in half if the user enables AI midway through a song.
   func separate(
     forSongID songID: String, sourceURL: URL, startTime: TimeInterval = 0
   ) async throws -> CachedStems {
@@ -181,7 +153,6 @@ final class VocalSeparator: ObservableObject {
           await VocalSeparator.shared.updateProgress(songID: songID, fraction: fraction)
         }
         if let trimmedTemp { try? FileManager.default.removeItem(at: trimmedTemp) }
-        // Persist (or clear) the start-offset sidecar so playback can align timelines.
         try? FileManager.default.removeItem(at: offsetURL)
         if normalizedStart > 1.0 {
           try? "\(normalizedStart)".data(using: .utf8)?.write(to: offsetURL)
@@ -285,7 +256,6 @@ final class VocalSeparator: ObservableObject {
       Self.cleanupTmpFiles([tmpVocals, tmpDrums, tmpBass, tmpOther])
       throw error
     }
-    // Move each stem from tmp to the cache directory
     let moves: [(URL, URL)] = [
       (tmpVocals, vocalsOutputURL),
       (tmpDrums, drumsOutputURL),
@@ -300,108 +270,6 @@ final class VocalSeparator: ObservableObject {
         try? FileManager.default.removeItem(at: src)
       }
     }
-  }
-
-  /// Streaming separation: reads source audio into memory and processes chunk-by-chunk,
-  /// calling `onChunk` each time a new ~5s chunk is ready so the caller can apply AI
-  /// effects progressively without waiting for the entire song.
-  @available(iOS 18.0, *)
-  func separateStreaming(
-    forSongID songID: String, sourceURL: URL, startTime: TimeInterval = 0,
-    onChunk: @escaping @Sendable (StreamingStems, Float) async -> Void
-  ) async throws -> CachedStems {
-    guard isAvailable, let modelURL else { throw VocalSeparatorError.unavailable }
-    if let old = activeTask {
-      old.cancel()
-      activeTask = nil
-      processingSongID = nil
-      progressFraction = 0
-    }
-    try Task.checkCancellation()
-    processingSongID = songID
-
-    let normalizedStart = max(0, startTime)
-    let modelRef = modelURL
-    let vocalsURL = Self.stemsCacheDir.appendingPathComponent("\(songID).vocals.wav")
-    let drumsURL = Self.stemsCacheDir.appendingPathComponent("\(songID).drums.wav")
-    let bassURL = Self.stemsCacheDir.appendingPathComponent("\(songID).bass.wav")
-    let otherURL = Self.stemsCacheDir.appendingPathComponent("\(songID).other.wav")
-    let offsetURL = Self.stemsCacheDir.appendingPathComponent("\(songID).offset")
-
-    let task = Task<URL, Error>.detached {
-      do {
-        let trimmedSource: URL
-        let trimmedTemp: URL?
-        if normalizedStart > 1.0 {
-          let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("\(songID).aitrim.m4a")
-          try await VocalSeparator.trim(source: sourceURL, from: normalizedStart, to: tmp)
-          trimmedSource = tmp
-          trimmedTemp = tmp
-        } else {
-          trimmedSource = sourceURL
-          trimmedTemp = nil
-        }
-
-        let spleeterFile = try Spleeter.AudioFile(forReading: trimmedSource)
-        let sampleRate = spleeterFile.sampleRate
-        let waveform = try spleeterFile.readStereoSamples()
-
-        let separator = try AudioSeparator4(modelURL: modelRef)
-        var accumulated = StreamingStems(
-          vocals: [], drums: [], bass: [], other: [],
-          sampleRate: sampleRate, startOffset: normalizedStart)
-
-        for try await (chunkStems, prog) in separator.separate(waveform) {
-          try Task.checkCancellation()
-          if let chunkStems {
-            accumulated.append(chunkStems)
-            await onChunk(accumulated, prog.fraction)
-          }
-          await VocalSeparator.shared.updateProgress(songID: songID, fraction: prog.fraction)
-        }
-
-        // Write final stems to cache as WAV files
-        try Self.writeMonoWAV(samples: accumulated.vocals, sampleRate: sampleRate, to: vocalsURL)
-        try Self.writeMonoWAV(samples: accumulated.drums, sampleRate: sampleRate, to: drumsURL)
-        try Self.writeMonoWAV(samples: accumulated.bass, sampleRate: sampleRate, to: bassURL)
-        try Self.writeMonoWAV(samples: accumulated.other, sampleRate: sampleRate, to: otherURL)
-
-        try? FileManager.default.removeItem(at: offsetURL)
-        if normalizedStart > 1.0 {
-          try? "\(normalizedStart)".data(using: .utf8)?.write(to: offsetURL)
-        }
-        if let trimmedTemp { try? FileManager.default.removeItem(at: trimmedTemp) }
-        await VocalSeparator.shared.finishJob(songID: songID)
-        return vocalsURL
-      } catch {
-        await VocalSeparator.shared.finishJob(songID: songID)
-        throw error
-      }
-    }
-    activeTask = task
-    _ = try await task.value
-    guard let stems = cachedStems(forSongID: songID) else {
-      throw VocalSeparatorError.unavailable
-    }
-    return stems
-  }
-
-  nonisolated private static func writeMonoWAV(samples: [Float], sampleRate: Double, to url: URL) throws {
-    try? FileManager.default.removeItem(at: url)
-    guard let format = AVAudioFormat(
-      commonFormat: .pcmFormatFloat32, sampleRate: sampleRate, channels: 1, interleaved: false)
-    else { return }
-    let frameCount = AVAudioFrameCount(samples.count)
-    guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
-    buffer.frameLength = frameCount
-    if let dst = buffer.floatChannelData?[0] {
-      samples.withUnsafeBufferPointer { src in
-        dst.initialize(from: src.baseAddress!, count: samples.count)
-      }
-    }
-    let file = try AVAudioFile(forWriting: url, settings: format.settings)
-    try file.write(from: buffer)
   }
 
   private static func cleanupTmpFiles(_ urls: [URL]) {

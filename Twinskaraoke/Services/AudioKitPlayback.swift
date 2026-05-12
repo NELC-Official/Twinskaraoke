@@ -7,7 +7,6 @@ import Foundation
 final class AudioKitPlayback {
   enum Mode { case single, aiMix }
 
-  /// Volume ramp shape used during crossfade.
   enum RampStyle {
     case equalPower  // cos/sin curve — constant perceived loudness
     case linear      // straight line — faster cuts
@@ -16,8 +15,6 @@ final class AudioKitPlayback {
   let engine = AudioEngine()
   let mainPlayer = AudioPlayer()
   let auxPlayer = AudioPlayer()
-  /// Dedicated player for crossfade transitions (separate from auxPlayer,
-  /// which is reserved for AI vocal separation).
   let crossfadePlayer = AudioPlayer()
   private let mixer: Mixer
   let userEQ = AVAudioUnitEQ(numberOfBands: 10)
@@ -29,31 +26,18 @@ final class AudioKitPlayback {
   private(set) var aiVocalsStrength: Float = 1.0
   private(set) var aiStartOffset: TimeInterval = 0
 
-  /// Monotonically increasing token bumped before any intentional stop/swap/seek.
-  /// The completion handler captures the current value; if it has changed by the
-  /// time the async dispatch runs, the callback is stale and is discarded.
-  /// This eliminates the race where `DispatchQueue.main.async` runs *after*
-  /// the old Bool flag was already reset to `false`.
   private var suppressionToken: UInt64 = 0
 
-  // MARK: - Crossfade state
-
-  /// Whether a crossfade is currently in progress.
   private(set) var isCrossfading = false
 
-  /// Timer driving the volume ramp at ~60 Hz during crossfade.
   private var crossfadeTimer: Timer?
 
-  /// Total duration of the active crossfade.
   private var crossfadeDuration: TimeInterval = 0
 
-  /// Elapsed time since the crossfade started.
   private var crossfadeElapsed: TimeInterval = 0
 
-  /// Ramp shape for the active crossfade.
   private var crossfadeRamp: RampStyle = .equalPower
 
-  /// Called when the crossfade finishes (incoming song is fully playing).
   var onCrossfadeCompleted: (() -> Void)?
 
   var onPlaybackEnded: (() -> Void)?
@@ -87,7 +71,6 @@ final class AudioKitPlayback {
     bassBand.bypass = true
     bassEQ.bypass = true
 
-    // Audio graph: mixer → bassEQ → userEQ → engine.output
     let bassNode = AVAudioUnitWrapperNode(input: mixer, unit: bassEQ)
     let userNode = AVAudioUnitWrapperNode(input: bassNode, unit: userEQ)
     engine.output = userNode
@@ -96,8 +79,6 @@ final class AudioKitPlayback {
       guard let self else { return }
       let token = self.suppressionToken
       DispatchQueue.main.async {
-        // If the token changed, a stop/seek/swap happened after this
-        // completion was enqueued — discard the stale callback.
         guard self.suppressionToken == token else { return }
         self.onPlaybackEnded?()
       }
@@ -114,40 +95,26 @@ final class AudioKitPlayback {
     }
   }
 
-  // MARK: - Audio header validation
-
-  /// Returns true if the file at `url` starts with a recognisable audio header
-  /// (MP3 sync word, ID3 tag, RIFF/WAVE, CAF, AIFF, or FLAC).  Returns false
-  /// for truncated / empty / unrecognisable files — callers should skip
-  /// AVAudioFile and go straight to AVAssetReader to avoid Core Audio console spam.
   static func hasValidAudioHeader(at url: URL) -> Bool {
     guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
     defer { try? handle.close() }
     guard let header = try? handle.read(upToCount: 12), header.count >= 4 else { return false }
-    // MP3 frame sync (0xFF followed by 0xE0 mask)
     if header[0] == 0xFF && (header[1] & 0xE0) == 0xE0 { return true }
-    // ID3v2 tag
     if header[0] == 0x49 && header[1] == 0x44 && header[2] == 0x33 { return true }
-    // RIFF/WAVE
     if header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46 {
       return true
     }
-    // AIFF
     if header[0] == 0x46 && header[1] == 0x4F && header[2] == 0x52 && header[3] == 0x4D {
       return true
     }
-    // CAF
     if header[0] == 0x63 && header[1] == 0x61 && header[2] == 0x66 && header[3] == 0x66 {
       return true
     }
-    // FLAC
     if header[0] == 0x66 && header[1] == 0x4C && header[2] == 0x61 && header[3] == 0x43 {
       return true
     }
     return false
   }
-
-  // MARK: - File loading with MP3 fallback
 
   private func loadIntoPlayer(_ player: AudioPlayer, url: URL) throws {
     guard FileManager.default.fileExists(atPath: url.path) else {
@@ -155,10 +122,6 @@ final class AudioKitPlayback {
         domain: NSOSStatusErrorDomain, code: 1685348671,
         userInfo: [NSLocalizedDescriptionKey: "Audio file not found: \(url.lastPathComponent)"])
     }
-    // Skip AVAudioFile for clearly invalid files (empty / truncated) to
-    // avoid Core Audio console errors.  For anything with a recognisable
-    // header we still try AVAudioFile first since it handles the widest
-    // range of codec edge-cases.
     let headerOK = AudioKitPlayback.hasValidAudioHeader(at: url)
     if headerOK {
       if let file = try? AVAudioFile(forReading: url) {
@@ -166,7 +129,6 @@ final class AudioKitPlayback {
           try player.load(file: file)
           return
         }
-        // Mono file — convert to stereo buffer before loading
         if let stereo = AudioKitPlayback.convertToStereo(file: file) {
           player.load(buffer: stereo)
           return
@@ -189,8 +151,6 @@ final class AudioKitPlayback {
       player.load(buffer: buffer)
       return
     }
-    // Last resort: try AVAudioFile regardless of header check — let
-    // Core Audio log its diagnostics if this also fails.
     let file = try AVAudioFile(forReading: url)
     try player.load(file: file)
   }
@@ -255,23 +215,17 @@ final class AudioKitPlayback {
     return buffer.frameLength > 0 ? buffer : nil
   }
 
-  // MARK: - Mono → Stereo conversion
-
-  /// Reads a mono AVAudioFile into a stereo PCM buffer (duplicates the channel).
   private static func convertToStereo(file: AVAudioFile) -> AVAudioPCMBuffer? {
     let srcFormat = file.processingFormat
     guard srcFormat.channelCount == 1 else { return nil }
     let frameCount = AVAudioFrameCount(file.length)
     guard frameCount > 0 else { return nil }
-    // Read the mono data
     guard let monoBuf = AVAudioPCMBuffer(pcmFormat: srcFormat, frameCapacity: frameCount)
     else { return nil }
     do { try file.read(into: monoBuf) } catch { return nil }
     return monoToStereo(monoBuf)
   }
 
-  /// Returns nil when the buffer is already stereo (no work needed).
-  /// Returns a new stereo buffer with the mono channel duplicated into L+R.
   static func ensureStereo(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
     guard buffer.format.channelCount == 1 else { return nil }
     return monoToStereo(buffer)
@@ -295,8 +249,6 @@ final class AudioKitPlayback {
     memcpy(rightData, monoData, byteCount)
     return stereo
   }
-
-  // MARK: - Playback
 
   private func safeStart(_ startAt: TimeInterval, durations: TimeInterval...) -> TimeInterval? {
     guard startAt > 0.05, startAt.isFinite else { return nil }
@@ -372,8 +324,6 @@ final class AudioKitPlayback {
     auxURL = nil
     aiStartOffset = max(0, startOffset)
     mode = .aiMix
-    // Volumes are set by the caller via applyAIMixVolumes() after this method returns.
-    // Default both to 1.0 so the caller's settings take effect cleanly.
     mainPlayer.volume = 1.0
     auxPlayer.volume = 1.0
     startEngineIfNeeded()
@@ -456,8 +406,6 @@ final class AudioKitPlayback {
     return true
   }
 
-  // MARK: - EQ
-
   func setEQEnabled(_ on: Bool) { userEQ.bypass = !on }
 
   func setEQGains(_ gains: [Float]) {
@@ -465,8 +413,6 @@ final class AudioKitPlayback {
       userEQ.bands[i].gain = gains[i]
     }
   }
-
-  // MARK: - Bass EQ (for AI bass enhance on instrumental)
 
   func setBassEQGain(dB: Float) {
     let band = bassEQ.bands[0]
@@ -480,8 +426,6 @@ final class AudioKitPlayback {
     setBassEQGain(dB: 0)
   }
 
-  // MARK: - AI mix volume control
-
   func setMainPlayerVolume(_ v: Float) {
     mainPlayer.volume = AUValue(max(0, min(2, v)))
   }
@@ -494,12 +438,7 @@ final class AudioKitPlayback {
     mixer.volume = AUValue(max(0, min(1, v)))
   }
 
-  // MARK: - Crossfade engine
-
-  /// Pre-load the next song into `crossfadePlayer` ahead of the actual crossfade.
-  /// Called by TransitionCoordinator when the plan is ready (~seconds before trigger).
   func preloadCrossfade(url: URL) {
-    // Don't preload if a crossfade is already in progress.
     guard !isCrossfading else { return }
     do {
       try loadIntoPlayer(crossfadePlayer, url: url)
@@ -510,17 +449,9 @@ final class AudioKitPlayback {
     }
   }
 
-  /// Load the next song into `crossfadePlayer` and begin an equal-power
-  /// (or linear) volume ramp over `duration` seconds.
-  ///
-  /// While the crossfade is active the `mainPlayer` volume ramps down and
-  /// `crossfadePlayer` ramps up.  When done, `finalizeCrossfade()` swaps
-  /// the content into `mainPlayer` so subsequent operations are unaffected.
   func beginCrossfade(url: URL, duration: TimeInterval, ramp: RampStyle) {
-    // Check if we already pre-loaded this exact file.
     let alreadyPreloaded = (preloadedCrossfadeURL == url)
 
-    // Cancel any existing crossfade but preserve the crossfadePlayer if preloaded.
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
     preloadedCrossfadeURL = nil
@@ -535,7 +466,6 @@ final class AudioKitPlayback {
       }
     }
 
-    // Load if not already preloaded.
     if !alreadyPreloaded {
       do {
         try loadIntoPlayer(crossfadePlayer, url: url)
@@ -550,8 +480,6 @@ final class AudioKitPlayback {
     isCrossfading = true
     pendingCrossfadeURL = url
 
-    // Capture the current outgoing volumes for AI mix mode so the ramp
-    // uses absolute values instead of compounding multiplicatively.
     crossfadeStartMainVol = Float(mainPlayer.volume)
     crossfadeStartAuxVol = Float(auxPlayer.volume)
 
@@ -559,7 +487,6 @@ final class AudioKitPlayback {
     startEngineIfNeeded()
     crossfadePlayer.play()
 
-    // 60 Hz ramp timer
     let interval: TimeInterval = 1.0 / 60.0
     crossfadeTimer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) {
       [weak self] timer in
@@ -571,7 +498,6 @@ final class AudioKitPlayback {
       let inVol: Float
       switch self.crossfadeRamp {
       case .equalPower:
-        // cos/sin equal-power curve: out² + in² ≈ 1.0 at midpoint
         outVol = cos(t * .pi / 2)
         inVol = sin(t * .pi / 2)
       case .linear:
@@ -580,8 +506,6 @@ final class AudioKitPlayback {
       }
 
       if self.mode == .aiMix {
-        // AI mix uses both mainPlayer and auxPlayer — scale both down using
-        // the absolute volumes captured at crossfade start (not multiplicative).
         self.mainPlayer.volume = AUValue(max(0, self.crossfadeStartMainVol * outVol))
         self.auxPlayer.volume = AUValue(max(0, self.crossfadeStartAuxVol * outVol))
       } else {
@@ -595,15 +519,11 @@ final class AudioKitPlayback {
     }
   }
 
-  /// Cancel an in-progress crossfade (e.g. user skipped manually).
   func cancelCrossfade() {
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
-    // Clean up any pre-loaded content.
     preloadedCrossfadeURL = nil
     guard isCrossfading else {
-      // Not crossfading — but the crossfadePlayer may have a preloaded file.
-      // Stop it to free resources.
       crossfadePlayer.stop()
       crossfadePlayer.volume = 0
       return
@@ -611,37 +531,28 @@ final class AudioKitPlayback {
     isCrossfading = false
     crossfadePlayer.stop()
     crossfadePlayer.volume = 0
-    // Restore outgoing volumes
     if mode == .aiMix {
-      // Volumes will be reset by the caller (applyAIMixVolumes).
     } else {
       mainPlayer.volume = 1.0
     }
   }
 
-  /// Crossfade finished — swap incoming content to mainPlayer seamlessly.
-  /// The key trick: keep `crossfadePlayer` audible while loading `mainPlayer`,
-  /// then stop it only after `mainPlayer` is producing audio.
   private func finalizeCrossfade() {
     crossfadeTimer?.invalidate()
     crossfadeTimer = nil
     isCrossfading = false
 
-    // Stop the outgoing players (already at volume 0).
     suppressionToken &+= 1
     mainPlayer.stop()
     if mode == .aiMix {
       auxPlayer.stop()
     }
 
-    // Keep crossfadePlayer running at full volume to avoid any silence gap.
     crossfadePlayer.volume = 1.0
 
     if let url = pendingCrossfadeURL {
       do {
-        // Record the resume position while crossfadePlayer is still audible.
         let resumeTime = crossfadePlayer.currentTime
-        // Load the file into mainPlayer (crossfadePlayer covers audio during I/O).
         try loadIntoPlayer(mainPlayer, url: url)
         mode = .single
         auxURL = nil
@@ -653,11 +564,9 @@ final class AudioKitPlayback {
         let from = safeStart(resumeTime, durations: mainPlayer.duration)
         mainPlayer.play(from: from)
         currentURL = url
-        // mainPlayer is now producing audio — stop crossfadePlayer.
         crossfadePlayer.stop()
         crossfadePlayer.volume = 0
       } catch {
-        // Load failed — stop crossfadePlayer anyway (nothing else we can do).
         crossfadePlayer.stop()
         crossfadePlayer.volume = 0
         onPlaybackError?(error)
@@ -671,13 +580,10 @@ final class AudioKitPlayback {
     onCrossfadeCompleted?()
   }
 
-  /// URL of the file being crossfaded in — set by `beginCrossfade`, consumed by `finalizeCrossfade`.
   private var pendingCrossfadeURL: URL?
 
-  /// URL pre-loaded into `crossfadePlayer` ahead of the crossfade trigger.
   private var preloadedCrossfadeURL: URL?
 
-  /// Initial outgoing player volumes captured at crossfade start (for AI mix mode).
   private var crossfadeStartMainVol: Float = 1.0
   private var crossfadeStartAuxVol: Float = 0.0
 }

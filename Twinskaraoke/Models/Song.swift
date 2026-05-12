@@ -51,15 +51,10 @@ struct Song: Codable, Identifiable, Equatable {
     case (false, true): return original
     case (true, false): return "Cover by \(cover)"
     case (true, true):
-      // If the API provided the artist fields (non-nil) but they're empty,
-      // the song genuinely has no artist info → show "Unknown Artist".
-      // If the fields are nil, the API simply didn't include them (e.g. playlist
-      // listing endpoint) → show nothing until we fetch full metadata.
       let apiProvidedArtists = originalArtists != nil || coverArtists != nil
       return apiProvidedArtists ? "Unknown Artist" : ""
     }
   }
-  /// Whether the song has artist metadata from the API (not a placeholder).
   var hasArtistMetadata: Bool {
     let original = originalArtists?.filter { !$0.isEmpty } ?? []
     let cover = coverArtists?.filter { !$0.isEmpty } ?? []
