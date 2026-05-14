@@ -1,7 +1,7 @@
 import Compression
 import Foundation
 
-enum AudioCacheStore {
+nonisolated enum AudioCacheStore {
   struct SongFiles {
     let directory: URL
     let main: URL
@@ -16,6 +16,12 @@ enum AudioCacheStore {
   private static let compressionExtension = "nkz"
   private static let compressionAlgorithm: Algorithm = .lzfse
   private static let chunkSize = 64 * 1024
+  private static let cacheDirectory: URL = {
+    let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+      .appendingPathComponent("AudioCache", isDirectory: true)
+    try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    return directory
+  }()
 
   static func files(for songID: String) -> SongFiles {
     let directory = ensureSongDirectory(for: songID)
@@ -31,8 +37,7 @@ enum AudioCacheStore {
   }
 
   static func ensureSongDirectory(for songID: String) -> URL {
-    let directory = AudioPlayerManager.audioCacheDir
-      .appendingPathComponent(songID, isDirectory: true)
+    let directory = cacheDirectory.appendingPathComponent(songID, isDirectory: true)
     try? fm.createDirectory(at: directory, withIntermediateDirectories: true)
     return directory
   }
@@ -68,7 +73,7 @@ enum AudioCacheStore {
   static func cachedSongDirectories() -> [URL] {
     guard
       let entries = try? fm.contentsOfDirectory(
-        at: AudioPlayerManager.audioCacheDir,
+        at: cacheDirectory,
         includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey],
         options: [.skipsHiddenFiles])
     else {
@@ -117,7 +122,7 @@ enum AudioCacheStore {
     cleanupPartialFiles()
     guard
       let entries = try? fm.contentsOfDirectory(
-        at: AudioPlayerManager.audioCacheDir,
+        at: cacheDirectory,
         includingPropertiesForKeys: [.isDirectoryKey],
         options: [.skipsHiddenFiles])
     else {
@@ -134,7 +139,7 @@ enum AudioCacheStore {
   static func cleanupPartialFiles() {
     guard
       let enumerator = fm.enumerator(
-        at: AudioPlayerManager.audioCacheDir,
+        at: cacheDirectory,
         includingPropertiesForKeys: [.isRegularFileKey],
         options: [.skipsHiddenFiles])
     else {
@@ -170,7 +175,7 @@ enum AudioCacheStore {
     let now = Date()
     try? fm.setAttributes([.modificationDate: now], ofItemAtPath: url.path)
 
-    let rootPath = AudioPlayerManager.audioCacheDir.path
+    let rootPath = cacheDirectory.path
     let songDirectory = url.hasDirectoryPath ? url : url.deletingLastPathComponent()
     if songDirectory.path.hasPrefix(rootPath), songDirectory.path != rootPath {
       try? fm.setAttributes([.modificationDate: now], ofItemAtPath: songDirectory.path)

@@ -84,21 +84,24 @@ final class DownloadManager: ObservableObject {
           moved = true
         } catch {}
       }
-      Task { @MainActor in
-        guard let self else { return }
-        self.tasks.removeValue(forKey: songID)
-        self.inProgress.remove(songID)
-        self.progress.removeValue(forKey: songID)
-        if moved {
-          self.downloadedIDs.insert(songID)
-          DebugLogger.log("Download completed: \(songID)", category: .network)
-        } else {
-          DebugLogger.log("Download failed: \(songID)", category: .network)
-        }
+      Task { @MainActor [weak self, moved, songID] in
+        self?.finishDownload(songID: songID, moved: moved)
       }
     }
     tasks[song.id] = task
     task.resume()
+  }
+
+  private func finishDownload(songID: String, moved: Bool) {
+    tasks.removeValue(forKey: songID)
+    inProgress.remove(songID)
+    progress.removeValue(forKey: songID)
+    if moved {
+      downloadedIDs.insert(songID)
+      DebugLogger.log("Download completed: \(songID)", category: .network)
+    } else {
+      DebugLogger.log("Download failed: \(songID)", category: .network)
+    }
   }
 
   func cancel(songID: String) {

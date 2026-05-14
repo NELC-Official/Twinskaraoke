@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-class HomeViewModel: ObservableObject {
+final class HomeViewModel: ObservableObject {
   private enum TopPicksSource {
     case publicPlaylists
     case setlists
@@ -140,17 +140,19 @@ class HomeViewModel: ObservableObject {
     ])
 
     URLSession.shared.dataTask(with: request) { data, _, _ in
-      guard let data,
-        let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data)
-      else {
-        completion([])
-        return
+      Task { @MainActor in
+        guard let data,
+          let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data)
+        else {
+          completion([])
+          return
+        }
+        let filtered = decoded.items.filter {
+          !$0.title.localizedCaseInsensitiveContains("Temporary Stream Audio")
+        }
+        let curated = Array((filtered.isEmpty ? decoded.items : filtered).prefix(12))
+        completion(curated)
       }
-      let filtered = decoded.items.filter {
-        !$0.title.localizedCaseInsensitiveContains("Temporary Stream Audio")
-      }
-      let curated = Array((filtered.isEmpty ? decoded.items : filtered).prefix(12))
-      completion(curated)
     }.resume()
   }
   private func fetchData<T: Codable>(urlString: String, completion: @escaping (T?) -> Void) {

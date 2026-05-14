@@ -26,7 +26,7 @@ enum VocalSeparatorError: Error {
   case readFailed
 }
 
-struct CachedStems {
+nonisolated struct CachedStems {
   let vocals: URL
   let instruments: URL
   let startOffset: TimeInterval

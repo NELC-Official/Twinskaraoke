@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import SwiftUI
 
-struct Artist: Codable, Identifiable, Equatable {
+nonisolated struct Artist: Codable, Identifiable, Equatable, Sendable {
   let id: String
   let name: String
   let summary: String?
@@ -44,21 +44,27 @@ final class ArtistsViewModel: ObservableObject {
     var request = URLRequest(url: url)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      Task { @MainActor in
-        guard let self = self else { return }
-        if let data, let decoded = try? JSONDecoder().decode([Artist].self, from: data) {
-          if reset {
-            self.artists = decoded
-          } else {
-            let existing = Set(self.artists.map { $0.id })
-            self.artists += decoded.filter { !existing.contains($0.id) }
-          }
-          self.page += 1
-          self.canLoadMore = decoded.count == self.pageSize
-        }
-        self.isLoading = false
+      Task { @MainActor [weak self, data, reset] in
+        self?.applyArtistsResponse(data, reset: reset)
       }
     }.resume()
+  }
+
+  private func applyArtistsResponse(_ data: Data?, reset: Bool) {
+    defer { isLoading = false }
+
+    guard let data, let decoded = try? JSONDecoder().decode([Artist].self, from: data) else {
+      return
+    }
+
+    if reset {
+      artists = decoded
+    } else {
+      let existing = Set(artists.map { $0.id })
+      artists += decoded.filter { !existing.contains($0.id) }
+    }
+    page += 1
+    canLoadMore = decoded.count == pageSize
   }
 }
 @MainActor
@@ -75,14 +81,20 @@ final class ArtistDetailViewModel: ObservableObject {
     var request = URLRequest(url: url)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      Task { @MainActor in
-        guard let self = self else { return }
-        if let data, let decoded = try? JSONDecoder().decode(Artist.self, from: data) {
-          self.artist = decoded
-        }
-        self.isLoading = false
+      Task { @MainActor [weak self, data] in
+        self?.applyArtistDetailResponse(data)
       }
     }.resume()
+  }
+
+  private func applyArtistDetailResponse(_ data: Data?) {
+    defer { isLoading = false }
+
+    guard let data, let decoded = try? JSONDecoder().decode(Artist.self, from: data) else {
+      return
+    }
+
+    artist = decoded
   }
 }
 

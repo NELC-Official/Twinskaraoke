@@ -1,10 +1,16 @@
 import Foundation
 
-struct LyricLine: Identifiable, Codable {
+nonisolated struct LyricLine: Identifiable, Codable {
   let id = UUID()
   let time: TimeInterval
   let text: String
   let translatedText: String?
+
+  enum CodingKeys: String, CodingKey {
+    case time
+    case text
+    case translatedText
+  }
 
   init(time: TimeInterval, text: String, translatedText: String? = nil) {
     self.time = time
@@ -17,12 +23,12 @@ struct LyricLine: Identifiable, Codable {
   }
 }
 
-struct RawLyricLine: Codable {
+nonisolated struct RawLyricLine: Codable {
   let time: String
   let text: String
 }
 
-enum TimeSpanParser {
+nonisolated enum TimeSpanParser {
   static func parse(_ raw: String) -> TimeInterval? {
     let parts = raw.split(separator: ":")
     guard parts.count == 3 else { return nil }

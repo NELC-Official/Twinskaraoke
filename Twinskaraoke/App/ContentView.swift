@@ -62,7 +62,7 @@ private struct PopupContent: View {
           subtitle: audioManager.currentSong?.displayArtist ?? "")
       )
       .modifier(PopupImageModifier(artwork: audioManager.nowPlayingArtwork))
-      .popupBarItems({
+      .popupBarButtons({
         PopupBarTrailingItems(
           isPlaying: audioManager.isPlaying,
           isRadioMode: audioManager.isRadioMode,

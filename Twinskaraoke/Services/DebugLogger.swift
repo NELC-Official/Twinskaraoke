@@ -1,7 +1,7 @@
 import Foundation
 import os.log
 
-enum LogCategory: String {
+nonisolated enum LogCategory: String {
   case cache = "Cache"
   case ai = "AI"
   case playback = "Playback"
@@ -14,7 +14,7 @@ enum LogCategory: String {
   }
 }
 
-enum DebugLogger {
+nonisolated enum DebugLogger {
   private static let dateFormatter: DateFormatter = {
     let f = DateFormatter()
     f.dateFormat = "HH:mm:ss.SSS"

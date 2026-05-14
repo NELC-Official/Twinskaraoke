@@ -48,12 +48,12 @@ enum LyricsCacheStore {
   }
 }
 
-private struct CachedLyricsDocument: Codable {
+nonisolated private struct CachedLyricsDocument: Codable {
   let savedAt: Date
   let lines: [CachedLyricLine]
 }
 
-private struct CachedLyricLine: Codable {
+nonisolated private struct CachedLyricLine: Codable {
   let time: TimeInterval
   let text: String
   let translatedText: String?

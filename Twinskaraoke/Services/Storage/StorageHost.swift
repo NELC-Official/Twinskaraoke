@@ -1,6 +1,6 @@
 import Foundation
 
-enum StorageHost {
+nonisolated enum StorageHost {
   static var base: String {
     isChinaRegion ? "https://storage.neurokaraoke.com.cn" : "https://storage.neurokaraoke.com"
   }

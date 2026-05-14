@@ -1750,7 +1750,7 @@ class AudioPlayerManager: ObservableObject {
     guard !song.hasArtistMetadata else { return }
     let songID = song.id
     guard let url = URL(string: "\(StorageHost.api)/api/explore/trendings?days=all") else { return }
-    var searchURL = URLComponents(string: "\(StorageHost.api)/api/songs")
+    let searchURL = URLComponents(string: "\(StorageHost.api)/api/songs")
     var request: URLRequest
     if let searchURL, let u = searchURL.url {
       request = URLRequest(url: u)

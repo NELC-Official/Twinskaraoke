@@ -26,7 +26,7 @@ import SwiftUI
   }
 #endif
 
-struct GalleryVideo: Codable, Identifiable, Equatable {
+nonisolated struct GalleryVideo: Codable, Identifiable, Equatable, Sendable {
   let id: String
   let name: String
   let songTitle: String?
@@ -50,31 +50,35 @@ struct GalleryVideo: Codable, Identifiable, Equatable {
   }
 }
 
-private struct VideosResponse: Codable {
+nonisolated private struct VideosResponse: Codable, Sendable {
   let items: [GalleryVideo]
   let totalCount: Int
   let page: Int
   let pageSize: Int
 }
 
-class VideoGalleryViewModel: ObservableObject {
+@MainActor
+final class VideoGalleryViewModel: ObservableObject {
   @Published var videos: [GalleryVideo] = []
   @Published var isLoading = false
   @Published var canLoadMore = true
   private var page = 1
   private let pageSize = 25
+
   func fetchInitial() {
     guard videos.isEmpty else { return }
     page = 1
     canLoadMore = true
     load(reset: true)
   }
+
   func loadMoreIfNeeded(current: GalleryVideo) {
     guard let idx = videos.firstIndex(of: current) else { return }
     if idx >= videos.count - 5 && !isLoading && canLoadMore {
       load(reset: false)
     }
   }
+
   private func load(reset: Bool) {
     let urlString =
       "\(StorageHost.api)/api/videos?page=\(page)&pageSize=\(pageSize)&sortBy=UploadedAt&sortDescending=True"
@@ -83,18 +87,26 @@ class VideoGalleryViewModel: ObservableObject {
     var request = URLRequest(url: url)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      guard let self = self else { return }
-      if let data, let decoded = try? JSONDecoder().decode(VideosResponse.self, from: data) {
-        DispatchQueue.main.async {
-          if reset { self.videos = decoded.items } else { self.videos += decoded.items }
-          self.page += 1
-          self.canLoadMore = self.videos.count < decoded.totalCount
-          self.isLoading = false
-        }
-      } else {
-        DispatchQueue.main.async { self.isLoading = false }
+      Task { @MainActor [weak self, data, reset] in
+        self?.applyVideosResponse(data, reset: reset)
       }
     }.resume()
+  }
+
+  private func applyVideosResponse(_ data: Data?, reset: Bool) {
+    defer { isLoading = false }
+
+    guard let data, let decoded = try? JSONDecoder().decode(VideosResponse.self, from: data) else {
+      return
+    }
+
+    if reset {
+      videos = decoded.items
+    } else {
+      videos += decoded.items
+    }
+    page += 1
+    canLoadMore = videos.count < decoded.totalCount
   }
 }
 
@@ -232,9 +244,11 @@ private struct VideoGalleryCell: View {
   }
 }
 
-class SimilarVideosViewModel: ObservableObject {
+@MainActor
+final class SimilarVideosViewModel: ObservableObject {
   @Published var videos: [GalleryVideo] = []
   @Published var isLoading = false
+
   func fetch(excluding currentID: String) {
     guard videos.isEmpty else { return }
     let urlString =
@@ -244,16 +258,20 @@ class SimilarVideosViewModel: ObservableObject {
     var request = URLRequest(url: url)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      guard let self = self else { return }
-      if let data, let decoded = try? JSONDecoder().decode(VideosResponse.self, from: data) {
-        DispatchQueue.main.async {
-          self.videos = decoded.items.filter { $0.id != currentID }
-          self.isLoading = false
-        }
-      } else {
-        DispatchQueue.main.async { self.isLoading = false }
+      Task { @MainActor [weak self, data, currentID] in
+        self?.applySimilarVideosResponse(data, excluding: currentID)
       }
     }.resume()
+  }
+
+  private func applySimilarVideosResponse(_ data: Data?, excluding currentID: String) {
+    defer { isLoading = false }
+
+    guard let data, let decoded = try? JSONDecoder().decode(VideosResponse.self, from: data) else {
+      return
+    }
+
+    videos = decoded.items.filter { $0.id != currentID }
   }
 }
 

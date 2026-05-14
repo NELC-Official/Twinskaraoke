@@ -5,7 +5,7 @@ import Foundation
   import UIKit
 #endif
 
-struct GenreSummary: Decodable, Identifiable {
+nonisolated struct GenreSummary: Decodable, Identifiable, Sendable {
   let id: String
   let name: String
   let songCount: Int
@@ -23,39 +23,58 @@ struct GenreSummary: Decodable, Identifiable {
   }
 }
 
-private struct GenreDetail: Decodable {
+nonisolated private struct GenreDetail: Decodable, Sendable {
   let id: String
   let name: String
   let songs: [Song]?
 }
 
+nonisolated private enum TopChartSection: Sendable {
+  case songs
+  case weeklyTrending
+}
+
 @MainActor
-class TopChartViewModel: ObservableObject {
+final class TopChartViewModel: ObservableObject {
   @Published var songs: [Song] = []
   @Published var weeklyTrending: [Song] = []
+
   func loadIfNeeded() {
     fetch(
       url: "\(StorageHost.api)/api/explore/trendings?days=all",
-      keyPath: \.songs)
+      target: .songs)
     fetch(
       url: "\(StorageHost.api)/api/explore/trendings?days=7&take=20",
-      keyPath: \.weeklyTrending)
+      target: .weeklyTrending)
   }
-  private func fetch(url: String, keyPath: ReferenceWritableKeyPath<TopChartViewModel, [Song]>) {
+
+  private func fetch(url: String, target: TopChartSection) {
     guard let u = URL(string: url) else { return }
     var request = URLRequest(url: u)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      guard let data, let list = try? JSONDecoder().decode([Song].self, from: data) else {
-        return
+      Task { @MainActor [weak self, data, target] in
+        self?.applyTopChartResponse(data, to: target)
       }
-      Task { @MainActor in self?[keyPath: keyPath] = list }
     }.resume()
+  }
+
+  private func applyTopChartResponse(_ data: Data?, to target: TopChartSection) {
+    guard let data, let list = try? JSONDecoder().decode([Song].self, from: data) else {
+      return
+    }
+
+    switch target {
+    case .songs:
+      songs = list
+    case .weeklyTrending:
+      weeklyTrending = list
+    }
   }
 }
 
 @MainActor
-class GenresViewModel: ObservableObject {
+final class GenresViewModel: ObservableObject {
   @Published var genres: [GenreSummary] = []
   @Published var artworkURLs: [String: URL] = [:]
   @Published var firstSongs: [String: Song] = [:]
@@ -73,21 +92,30 @@ class GenresViewModel: ObservableObject {
         forName: UIApplication.didReceiveMemoryWarningNotification,
         object: nil, queue: .main
       ) { [weak self] _ in
-        self?.allSongs.removeAll()
-        self?.firstSongs.removeAll()
-        self?.genreDetailOrder.removeAll()
+        Task { @MainActor [weak self] in
+          self?.clearCachedGenreDetails()
+        }
       }
     #endif
   }
+
   func loadIfNeeded() {
     fetchPage(0, replace: true)
   }
+
   func loadMoreIfNeeded(current: GenreSummary) {
     guard let idx = genres.firstIndex(where: { $0.id == current.id }) else { return }
     if idx >= genres.count - 6 && !isLoadingMore && canLoadMore {
       fetchPage(page, replace: false)
     }
   }
+
+  private func clearCachedGenreDetails() {
+    allSongs.removeAll()
+    firstSongs.removeAll()
+    genreDetailOrder.removeAll()
+  }
+
   private func fetchPage(_ page: Int, replace: Bool) {
     guard
       let url = URL(
@@ -98,31 +126,39 @@ class GenresViewModel: ObservableObject {
     var request = URLRequest(url: url)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      let decoded = data.flatMap { try? JSONDecoder().decode([GenreSummary].self, from: $0) }
-      Task { @MainActor in
-        guard let self else { return }
-        defer { self.isLoadingMore = false }
-        guard let list = decoded else {
-          self.canLoadMore = false
-          return
-        }
-        let filtered = list.filter { $0.songCount > 0 }
-        if replace {
-          self.genres = filtered
-        } else {
-          let existing = Set(self.genres.map { $0.id })
-          self.genres += filtered.filter { !existing.contains($0.id) }
-        }
-        self.canLoadMore = list.count == self.pageSize
-        self.page = page + 1
-        for genre in filtered { self.fetchDetail(for: genre) }
+      Task { @MainActor [weak self, data, page, replace] in
+        self?.applyGenrePageResponse(data, page: page, replace: replace)
       }
     }.resume()
   }
+
+  private func applyGenrePageResponse(_ data: Data?, page: Int, replace: Bool) {
+    defer { isLoadingMore = false }
+
+    guard let data, let list = try? JSONDecoder().decode([GenreSummary].self, from: data) else {
+      canLoadMore = false
+      return
+    }
+
+    let filtered = list.filter { $0.songCount > 0 }
+    if replace {
+      genres = filtered
+    } else {
+      let existing = Set(genres.map { $0.id })
+      genres += filtered.filter { !existing.contains($0.id) }
+    }
+    canLoadMore = list.count == pageSize
+    self.page = page + 1
+    for genre in filtered {
+      fetchDetail(for: genre)
+    }
+  }
+
   private static let neuroFallbackURL = URL(
     string:
       "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95"
   )!
+
   private func fetchDetail(for genre: GenreSummary) {
     if allSongs[genre.id] != nil { return }
     guard let url = URL(string: "\(StorageHost.api)/api/genres/\(genre.id)") else {
@@ -131,37 +167,44 @@ class GenresViewModel: ObservableObject {
     var request = URLRequest(url: url)
     GuestIdentity.applyIfNeeded(to: &request)
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      guard let data,
-        let detail = try? JSONDecoder().decode(GenreDetail.self, from: data)
-      else { return }
-      Task { @MainActor in
-        guard let self else { return }
-        if let songs = detail.songs {
-          self.allSongs[genre.id] = songs
-          if let first = songs.first {
-            self.firstSongs[genre.id] = first
-          }
-          let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
-          self.artworkURLs[genre.id] = artURL
-          self.genreDetailOrder.removeAll { $0 == genre.id }
-          self.genreDetailOrder.append(genre.id)
-          while self.genreDetailOrder.count > self.maxCachedGenreDetails {
-            let oldest = self.genreDetailOrder.removeFirst()
-            self.allSongs.removeValue(forKey: oldest)
-            self.firstSongs.removeValue(forKey: oldest)
-          }
-        }
+      Task { @MainActor [weak self, data, genre] in
+        self?.applyGenreDetailResponse(data, for: genre)
       }
     }.resume()
   }
+
+  private func applyGenreDetailResponse(_ data: Data?, for genre: GenreSummary) {
+    guard let data,
+      let detail = try? JSONDecoder().decode(GenreDetail.self, from: data),
+      let songs = detail.songs
+    else {
+      return
+    }
+
+    allSongs[genre.id] = songs
+    if let first = songs.first {
+      firstSongs[genre.id] = first
+    }
+    let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL
+    artworkURLs[genre.id] = artURL
+    genreDetailOrder.removeAll { $0 == genre.id }
+    genreDetailOrder.append(genre.id)
+    while genreDetailOrder.count > maxCachedGenreDetails {
+      let oldest = genreDetailOrder.removeFirst()
+      allSongs.removeValue(forKey: oldest)
+      firstSongs.removeValue(forKey: oldest)
+    }
+  }
 }
 
-class SearchViewModel: ObservableObject {
+@MainActor
+final class SearchViewModel: ObservableObject {
   @Published var results: [Song] = []
   @Published var searchText = ""
   @Published var isSearching = false
   private var cancellables = Set<AnyCancellable>()
   private var queryToken: Int = 0
+
   init() {
     $searchText
       .debounce(for: .milliseconds(500), scheduler: DispatchQueue.main)
@@ -171,6 +214,7 @@ class SearchViewModel: ObservableObject {
       }
       .store(in: &cancellables)
   }
+
   func search(_ query: String) {
     guard let url = URL(string: "\(StorageHost.api)/api/songs") else { return }
     queryToken += 1
@@ -184,18 +228,20 @@ class SearchViewModel: ObservableObject {
       "page": 1, "pageSize": 30, "search": query,
     ])
     URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      if let data, let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) {
-        DispatchQueue.main.async {
-          guard let self, self.queryToken == token else { return }
-          self.results = decoded.items
-          self.isSearching = false
-        }
-      } else {
-        DispatchQueue.main.async {
-          guard let self, self.queryToken == token else { return }
-          self.isSearching = false
-        }
+      Task { @MainActor [weak self, data, token] in
+        self?.applySearchResponse(data, token: token)
       }
     }.resume()
+  }
+
+  private func applySearchResponse(_ data: Data?, token: Int) {
+    guard queryToken == token else { return }
+    defer { isSearching = false }
+
+    guard let data, let decoded = try? JSONDecoder().decode(SearchResponse.self, from: data) else {
+      return
+    }
+
+    results = decoded.items
   }
 }

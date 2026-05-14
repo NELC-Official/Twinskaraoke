@@ -1,6 +1,6 @@
 import Foundation
 
-struct Song: Codable, Identifiable, Equatable {
+nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
   let id: String
   let title: String
   let duration: Int
@@ -72,7 +72,7 @@ struct Song: Codable, Identifiable, Equatable {
   static func == (lhs: Song, rhs: Song) -> Bool { lhs.id == rhs.id }
 }
 
-struct Playlist: Codable, Identifiable {
+nonisolated struct Playlist: Codable, Identifiable, Sendable {
   static let favoritesID = "__favorites__"
   let id: String
   let name: String
@@ -119,15 +119,15 @@ struct Playlist: Codable, Identifiable {
   }
 }
 
-struct PlaylistMedia: Codable {
+nonisolated struct PlaylistMedia: Codable, Sendable {
   let cloudflareId: String?
   let absolutePath: String?
 }
 
-struct Media: Codable {
+nonisolated struct Media: Codable, Sendable {
   let absolutePath: String
 }
 
-struct SearchResponse: Codable {
+nonisolated struct SearchResponse: Codable, Sendable {
   let items: [Song]
 }
