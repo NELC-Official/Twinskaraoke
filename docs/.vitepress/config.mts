@@ -13,10 +13,10 @@ export default defineConfig({
 
     sidebar: [
       {
-        text: 'Quick Start',
+        text: 'Installation',
         items: [
           { text: 'Getting Started', link: '/getting-started' },
-          { text: 'Runtime API Examples', link: '/api-examples' }
+          { text: 'Build from Source', link: '/build-from-source' }
         ]
       }
     ],
