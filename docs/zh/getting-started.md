@@ -48,23 +48,23 @@ Sideloadly 用户：我们的 IPA 已为你预优化，**无需**在高级选项
 <details>
 <summary>截图展示</summary>
 <div style="display:flex;gap:2%;justify-content:center;margin-top:16px;">
-  <img src="../readmeimages/homescreen.png" style="width:48%" title="主屏幕">
-  <img src="../readmeimages/playingscreen.png" style="width:48%" title="正在播放">
+  <img src="../../readmeimages/homescreen.png" style="width:48%" title="主屏幕">
+  <img src="../../readmeimages/playingscreen.png" style="width:48%" title="正在播放">
 </div>
 <div style="display:flex;gap:2%;justify-content:center;margin-top:8px;">
-  <img src="../readmeimages/lyrics.png" style="width:48%" title="歌词视图">
-  <img src="../readmeimages/accountpage.png" style="width:48%" title="账号与设置">
+  <img src="../../readmeimages/lyrics.png" style="width:48%" title="歌词视图">
+  <img src="../../readmeimages/accountpage.png" style="width:48%" title="账号与设置">
 </div>
 <div style="display:flex;gap:2%;justify-content:center;margin-top:8px;">
-  <img src="../readmeimages/playingnext.png" style="width:48%" title="播放队列">
-  <img src="../readmeimages/instrumentallyrics.png" style="width:48%" title="伴奏歌词">
+  <img src="../../readmeimages/playingnext.png" style="width:48%" title="播放队列">
+  <img src="../../readmeimages/instrumentallyrics.png" style="width:48%" title="伴奏歌词">
 </div>
 <div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;">
-  <img src="../readmeimages/horizontal.png" style="width:80%" title="横屏模式">
+  <img src="../../readmeimages/horizontal.png" style="width:80%" title="横屏模式">
   <em>iPad 与 iPhone 均支持完整横屏布局</em>
 </div>
 <div style="display:flex;flex-direction:column;align-items:center;margin-top:8px;margin-bottom:16px;">
-  <img src="../readmeimages/backgroundplaydemo.webp" style="width:48%" title="后台播放演示">
+  <img src="../../readmeimages/backgroundplaydemo.webp" style="width:48%" title="后台播放演示">
   <em>完整后台播放与系统控制中心集成</em>
 </div>
 </details>
