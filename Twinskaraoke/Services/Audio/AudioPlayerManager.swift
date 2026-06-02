@@ -388,6 +388,7 @@ class AudioPlayerManager: ObservableObject {
   private var streamPlayer: AVPlayer?
   private var streamEndObserver: NSObjectProtocol?
   private var radioTimeObserver: (player: AVPlayer, token: Any)?
+  private var lastKnownPlaybackTime: TimeInterval = 0
   private var pollTimer: Timer?
   private var streamFadeTimer: Timer?
   private var streamStartedAt: Date?
@@ -477,6 +478,11 @@ class AudioPlayerManager: ObservableObject {
       guard let self else { return }
       self.transitionCoordinatorDidFinish()
     }
+    audioKit.onCrossfadeStarted = { [weak self] in
+      guard let self, self.isStreamMode, !self.isRadioMode else { return }
+      guard case .crossfading(let plan) = self.transitionCoordinator.state else { return }
+      self.fadeOutStreamPlayer(duration: plan.fadeDuration)
+    }
     audioKit.onPlaybackError = { [weak self] error in
       guard let self else { return }
       DebugLogger.log("AudioKit playback error: \(error)", category: .playback)
@@ -497,6 +503,9 @@ class AudioPlayerManager: ObservableObject {
       self.isPlaying = false
       self.isBuffering = false
       self.updateNowPlayingInfo(reloadArtwork: false)
+    }
+    audioKit.onEngineConfigurationChange = { [weak self] in
+      self?.recoverFromEngineConfigChange()
     }
     audioKit.setEQEnabled(eqEnabled)
     audioKit.setEQGains(eqGainsDB)
@@ -531,6 +540,9 @@ class AudioPlayerManager: ObservableObject {
         let v = Double(sysVol)
         if abs(self.volume - v) > 0.01 { self.volume = v }
       }
+      .store(in: &cancellables)
+    NotificationCenter.default.publisher(for: AVAudioSession.mediaServicesWereResetNotification)
+      .sink { [weak self] _ in self?.handleMediaServicesReset() }
       .store(in: &cancellables)
     #if canImport(UIKit)
       NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
@@ -897,6 +909,7 @@ class AudioPlayerManager: ObservableObject {
                 let item = player.currentItem,
                 item.status == .readyToPlay else { return }
           let t = player.currentTime().seconds
+          self.lastKnownPlaybackTime = t
           self.reconcilePreferredStreamResumeTime(observedTime: t, for: self.currentSong)
           let itemDuration = item.duration.seconds
           let dur = (itemDuration.isFinite && itemDuration > 0) ? itemDuration : self.playbackDuration
@@ -917,15 +930,20 @@ class AudioPlayerManager: ObservableObject {
               autoMixEnabled: self.autoMixEnabled,
               crossfadeEnabled: self.crossfadeEnabled,
               crossfadeSeconds: self.crossfadeSeconds,
-              aiEffectActive: self.anyAIEffectActive,
-              autoplayEnabled: self.autoplayEnabled
+              aiEffectActive: self.anyAIEffectActive
             )
           }
+          return
+        }
+        if !self.audioKit.isEngineRunning {
+          DebugLogger.log("Poll detected engine stopped — recovering", category: .playback)
+          self.recoverFromEngineConfigChange()
           return
         }
         let totalDur = self.playbackDuration
         guard totalDur.isFinite, totalDur > 0 else { return }
         let t = min(max(0, self.audioKit.currentTime), totalDur)
+        self.lastKnownPlaybackTime = t
         let newProgress = min(1.0, max(0.0, t / totalDur))
         if abs(newProgress - self.progress) > 0.0005 {
           self.progress = newProgress
@@ -942,8 +960,7 @@ class AudioPlayerManager: ObservableObject {
             autoMixEnabled: self.autoMixEnabled,
             crossfadeEnabled: self.crossfadeEnabled,
             crossfadeSeconds: self.crossfadeSeconds,
-            aiEffectActive: self.anyAIEffectActive,
-            autoplayEnabled: self.autoplayEnabled
+            aiEffectActive: self.anyAIEffectActive
           )
         }
       }
@@ -1502,36 +1519,6 @@ class AudioPlayerManager: ObservableObject {
     RunLoop.main.add(timer, forMode: .common)
   }
 
-  private func fadeOutStreamPlayerWhenCrossfadeStarts(duration: TimeInterval) {
-    streamFadeTimer?.invalidate()
-    let interval = AudioKitPlayback.transitionTimerInterval
-    let timeout = Date().addingTimeInterval(max(2.5, duration + 1.5))
-    let timer = Timer(timeInterval: interval, repeats: true) { [weak self] timer in
-      guard self != nil else { timer.invalidate(); return }
-      MainActor.assumeIsolated {
-        guard let self else { return }
-        guard self.isStreamMode, !self.isRadioMode else {
-          timer.invalidate()
-          if self.streamFadeTimer === timer { self.streamFadeTimer = nil }
-          return
-        }
-        guard self.transitionCoordinator.state.isCrossfading else {
-          if Date() >= timeout {
-            timer.invalidate()
-            if self.streamFadeTimer === timer { self.streamFadeTimer = nil }
-          }
-          return
-        }
-        guard self.audioKit.isCrossfading else { return }
-        timer.invalidate()
-        if self.streamFadeTimer === timer { self.streamFadeTimer = nil }
-        self.fadeOutStreamPlayer(duration: duration)
-      }
-    }
-    streamFadeTimer = timer
-    RunLoop.main.add(timer, forMode: .common)
-  }
-
   func updateRadioMetadata(song: Song, artworkURL: URL?) {
     guard isRadioMode else { return }
     currentSong = song
@@ -1750,7 +1737,28 @@ class AudioPlayerManager: ObservableObject {
     } catch {}
   }
   private func activateAudioSession() {
-    try? AVAudioSession.sharedInstance().setActive(true, options: [])
+    try? AVAudioSession.sharedInstance().setActive(true, options: [.notifyOthersOnDeactivation])
+  }
+  private func recoverFromEngineConfigChange() {
+    guard isPlaying, !isRadioMode, !isStreamMode else { return }
+    let position = lastKnownPlaybackTime
+    DebugLogger.log(
+      "Recovering playback after engine config change at \(position)s",
+      category: .playback)
+    configureAudioSessionCategory()
+    activateAudioSession()
+    audioKit.startEngineIfNeeded()
+    audioKit.seek(to: position)
+  }
+  private func handleMediaServicesReset() {
+    DebugLogger.log("Media services were reset — reconfiguring audio", category: .playback)
+    configureAudioSessionCategory()
+    activateAudioSession()
+    if isPlaying, !isRadioMode, !isStreamMode {
+      let position = lastKnownPlaybackTime
+      audioKit.startEngineIfNeeded()
+      audioKit.seek(to: position)
+    }
   }
   private func handleInterruption(_ note: Notification) {
     guard let info = note.userInfo,
@@ -2104,9 +2112,6 @@ class AudioPlayerManager: ObservableObject {
         duration: plan.fadeDuration,
         ramp: plan.rampStyle
       )
-      if isStreamMode {
-        fadeOutStreamPlayerWhenCrossfadeStarts(duration: plan.fadeDuration)
-      }
       let timeout = plan.fadeDuration + 3.0
       DispatchQueue.main.asyncAfter(deadline: .now() + timeout) { [weak self] in
         guard let self, self.transitionCoordinator.state.isCrossfading else { return }
@@ -2189,7 +2194,10 @@ class AudioPlayerManager: ObservableObject {
     }
     stopStreamPlayer()
     clearPreferredStreamResumeTime()
+    downloadSession = nil
     let song = plan.nextSong
+    currentPlaybackURL = plan.nextFileURL
+    CacheManager.shared.recordAccess(for: plan.nextFileURL)
     reportPlayCount(for: song.id)
     enrichSongMetadataIfNeeded(for: song)
     deferredAIEffect = nil
@@ -2211,6 +2219,8 @@ class AudioPlayerManager: ObservableObject {
       category: .playback)
     updateNowPlayingInfo(reloadArtwork: true)
     transitionCoordinator.reset()
+    let protectedIDs = activeSongIDs()
+    CacheManager.shared.enforceMusicCacheLimits(excluding: protectedIDs)
     if anyAIEffectActive {
       applyMLSeparationIfNeeded()
     } else if aiEnabled, aiAutoAnalyze, !isRadioMode {

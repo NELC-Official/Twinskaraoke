@@ -1,15 +1,6 @@
 {
-  "originHash" : "4afd691665d94c667f2d1b9624e0c26db733582df026521088b221f52dd4ed68",
+  "originHash" : "c37c9123500fe5b8e02c6f135b510cbb4ee3c07ea3545d5bf21f64cf4d6e0f24",
   "pins" : [
-    {
-      "identity" : "audiokit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/AudioKit",
-      "state" : {
-        "revision" : "97a35fe04cd8e3d13b8744e1216b8673f825bef6",
-        "version" : "5.7.2"
-      }
-    },
     {
       "identity" : "lnpopupcontroller",
       "kind" : "remoteSourceControl",

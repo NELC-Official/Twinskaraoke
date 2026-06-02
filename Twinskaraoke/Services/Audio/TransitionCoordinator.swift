@@ -83,13 +83,8 @@ final class TransitionCoordinator {
     autoMixEnabled: Bool,
     crossfadeEnabled: Bool,
     crossfadeSeconds: Double,
-    aiEffectActive: Bool,
-    autoplayEnabled: Bool
+    aiEffectActive: Bool
   ) {
-    guard autoplayEnabled else {
-      if case .idle = state {} else { reset() }
-      return
-    }
     guard totalDuration > 0, let currentSong else { return }
     guard autoMixEnabled || crossfadeEnabled else {
       if case .idle = state {} else { reset() }
