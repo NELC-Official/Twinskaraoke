@@ -8,7 +8,6 @@
     func makeUIView(context: Context) -> MPVolumeView {
       let view = MPVolumeView(frame: .zero)
       view.alpha = 0.0001
-      view.showsRouteButton = false
       return view
     }
     func updateUIView(_ uiView: MPVolumeView, context: Context) {

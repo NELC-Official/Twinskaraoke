@@ -16,7 +16,9 @@ final class RadioController: ObservableObject {
     scheduleRefresh()
     pollTimer?.invalidate()
     let timer = Timer(timeInterval: 15, repeats: true) { [weak self] _ in
-      self?.scheduleRefresh()
+      Task { @MainActor [weak self] in
+        self?.scheduleRefresh()
+      }
     }
     pollTimer = timer
     RunLoop.main.add(timer, forMode: .common)

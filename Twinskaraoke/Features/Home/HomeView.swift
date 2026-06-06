@@ -20,7 +20,9 @@ struct HomeView: View {
                   playlists: viewModel.recentPlaylists,
                   isLoadingMore: viewModel.isLoadingMoreTopPicks,
                   onAppearItem: { viewModel.loadMoreTopPicksIfNeeded(current: $0) },
-                  apiURL: { startIndex, pageSize in viewModel.topPicksURLForList(startIndex: startIndex, pageSize: pageSize) }
+                  apiURL: { startIndex, pageSize in
+                    viewModel.topPicksURLForList(startIndex: startIndex, pageSize: pageSize)
+                  }
                 )
               }
               if !recentlyPlayed.playlists.isEmpty {
@@ -47,10 +49,12 @@ struct HomeView: View {
           }
         }
         .animation(.easeInOut(duration: 0.35), value: viewModel.isLoading)
-        .padding(.vertical)
+        .padding(.top, AM.Spacing.l)
         .padding(.bottom, AM.Spacing.l)
       }
-      .navigationTitle("Home")
+      .musicScreenBackground()
+      .navigationTitle("Listen Now")
+      .navigationBarTitleDisplayMode(.large)
       .refreshable { viewModel.fetchHomeData(force: true) }
     }
   }
@@ -64,7 +68,8 @@ struct PlaylistCarousel: View {
   var apiURL: ((Int, Int) -> String)? = nil
   var body: some View {
     VStack(alignment: .leading, spacing: AM.Spacing.m) {
-      AMSectionHeader(title, destination: PlaylistListView(title: title, playlists: playlists, apiURL: apiURL))
+      AMSectionHeader(
+        title, destination: PlaylistListView(title: title, playlists: playlists, apiURL: apiURL))
       ScrollView(.horizontal, showsIndicators: false) {
         LazyHStack(alignment: .top, spacing: AM.Spacing.l) {
           ForEach(playlists) { playlist in
@@ -219,8 +224,8 @@ private struct LatestSingleSection: View {
         }
         .padding(14)
         .background(
-          RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(Color.primary.opacity(0.06))
+          RoundedRectangle(cornerRadius: AM.Radius.sheet, style: .continuous)
+            .fill(Color.appSecondaryBackground)
         )
       }
       .buttonStyle(PressableButtonStyle())
@@ -314,7 +319,7 @@ struct BrowseSongCollectionView: View {
       .frame(height: baseSize)
       .padding(.top, 8)
   }
-  private static let neuroFallbackURL = FallbackArtProvider.shared.randomURL
+  private static let neuroFallbackURL: URL? = FallbackArtProvider.shared.randomURL
   @ViewBuilder
   private var heroArtwork: some View {
     let artURL = songs.first(where: { $0.hasOwnArtwork })?.imageURL ?? Self.neuroFallbackURL

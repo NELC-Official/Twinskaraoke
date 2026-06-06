@@ -98,20 +98,13 @@ final class VocalSeparator: ObservableObject {
   }
 
   private func removeCachedStems(forSongID songID: String) {
-    let songFiles = AudioCacheStore.files(for: songID)
-    let urls = [
-      songFiles.vocals,
-      songFiles.instruments,
-      AudioCacheStore.compressedURL(for: songFiles.vocals),
-      AudioCacheStore.compressedURL(for: songFiles.instruments),
-      songFiles.offset,
-    ]
-    for url in urls {
-      try? FileManager.default.removeItem(at: url)
-    }
+    AudioCacheStore.removeStemCache(for: songID)
   }
 
-  func cachedStems(forSongID songID: String) -> CachedStems? {
+  func cachedStems(
+    forSongID songID: String,
+    expectedDuration: TimeInterval? = nil
+  ) -> CachedStems? {
     let offset = AudioCacheStore.readStartOffset(for: songID)
     guard offset <= 1.0 else {
       DebugLogger.log(
@@ -120,7 +113,12 @@ final class VocalSeparator: ObservableObject {
       removeCachedStems(forSongID: songID)
       return nil
     }
-    guard let stems = AudioCacheStore.playableStems(for: songID, startOffset: offset) else {
+    guard
+      let stems = AudioCacheStore.playableStems(
+        for: songID,
+        startOffset: offset,
+        expectedDuration: expectedDuration)
+    else {
       return nil
     }
     DebugLogger.log("Cache hit for stems: \(songID)", category: .separation)
@@ -136,12 +134,17 @@ final class VocalSeparator: ObservableObject {
   func separate(
     forSongID songID: String, sourceURL: URL, initiatedByBackground: Bool = false
   ) async throws -> CachedStems {
-    if let cached = cachedStems(forSongID: songID) { return cached }
+    let expectedDuration = Self.expectedDuration(for: sourceURL)
+    if let cached = cachedStems(forSongID: songID, expectedDuration: expectedDuration) {
+      return cached
+    }
     guard isAvailable, let modelURL else { throw VocalSeparatorError.unavailable }
     if processingSongID == songID, let active = activeTask {
       DebugLogger.log("Waiting for in-progress separation: \(songID)", category: .separation)
       _ = try await active.value
-      if let cached = cachedStems(forSongID: songID) { return cached }
+      if let cached = cachedStems(forSongID: songID, expectedDuration: expectedDuration) {
+        return cached
+      }
       throw VocalSeparatorError.unavailable
     }
     if let old = activeTask {
@@ -187,7 +190,7 @@ final class VocalSeparator: ObservableObject {
     activeTask = task
     _ = try await task.value
     CacheManager.shared.enforceMusicCacheLimits()
-    guard let stems = cachedStems(forSongID: songID) else {
+    guard let stems = cachedStems(forSongID: songID, expectedDuration: expectedDuration) else {
       throw VocalSeparatorError.unavailable
     }
     DebugLogger.log("Full separation complete for \(songID)", category: .separation)
@@ -353,6 +356,12 @@ final class VocalSeparator: ObservableObject {
     DebugLogger.log("Real-time temp files cleaned up", category: .separation)
   }
 
+  private nonisolated static func expectedDuration(for sourceURL: URL) -> TimeInterval? {
+    let duration = AudioCacheStore.audioDuration(at: sourceURL)
+    guard duration.isFinite, duration > 1.0 else { return nil }
+    return duration
+  }
+
   private func updateProgress(songID: String, fraction: Float) {
     if processingSongID == songID { progressFraction = fraction }
   }
@@ -434,6 +443,9 @@ final class VocalSeparator: ObservableObject {
         try FileManager.default.moveItem(at: src, to: dst)
       } catch {
         try? FileManager.default.removeItem(at: src)
+        cleanupTmpFiles([tmpVocals, tmpInstruments])
+        cleanupTmpFiles(moves.map { $0.1 })
+        throw error
       }
     }
   }

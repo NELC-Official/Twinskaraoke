@@ -412,6 +412,7 @@ class AudioPlayerManager: ObservableObject {
   private var instrumentalTask: Task<Void, Never>?
   private var backgroundAnalysisRetryTask: Task<Void, Never>?
   private var cacheCompressionTask: Task<Void, Never>?
+  private var aiStemSwitchInFlightSongID: String?
   private var quickCutTimer: Timer?
   private var quickCutGeneration: UInt64 = 0
   private var separationGeneration: UInt64 = 0
@@ -495,6 +496,8 @@ class AudioPlayerManager: ObservableObject {
     avEngine.onPlaybackError = { [weak self] error in
       guard let self else { return }
       DebugLogger.log("AVEngine playback error: \(error)", category: .playback)
+      let failedStemSwitchSongID = self.aiStemSwitchInFlightSongID
+      self.aiStemSwitchInFlightSongID = nil
       let pendingTransitionSong: Song?
       if case .crossfading(let plan) = self.transitionCoordinator.state {
         pendingTransitionSong = plan.nextSong
@@ -507,6 +510,24 @@ class AudioPlayerManager: ObservableObject {
           "Recovering from transition playback error with direct play(\(pendingTransitionSong.id))",
           category: .playback)
         self.play(song: pendingTransitionSong, resetTransitionVolume: true)
+        return
+      }
+      if let song = self.currentSong, !self.isRadioMode,
+        failedStemSwitchSongID == song.id || self.avEngine.mode == .aiStems
+      {
+        DebugLogger.log(
+          "Removing broken AI stem cache and falling back to main playback for \(song.id)",
+          category: .cache)
+        AudioCacheStore.removeStemCache(for: song.id)
+        self.preparedStemSongID = nil
+        self.deferredAIEffect = nil
+        self._suppressModeSwitch = true
+        self.karaokeMode = false
+        self.bassEnhanceMode = false
+        self.vocalEnhanceMode = false
+        self.instrumentalEnhanceMode = false
+        self._suppressModeSwitch = false
+        self.fallBackToMainPlayback(for: song, startAt: self.lastKnownPlaybackTime)
         return
       }
       if let song = self.currentSong, !self.isRadioMode,
@@ -611,6 +632,21 @@ class AudioPlayerManager: ObservableObject {
     }
     let expectedDuration = song.duration > 0 ? TimeInterval(song.duration) : nil
     return AudioCacheStore.playableMainURL(for: song.id, expectedRemoteURL: song.audioURL, expectedDuration: expectedDuration)
+  }
+
+  private func cachedStems(for song: Song, sourceURL: URL? = nil) -> CachedStems? {
+    let expectedDuration: TimeInterval?
+    if song.duration > 0 {
+      expectedDuration = TimeInterval(song.duration)
+    } else if let sourceURL {
+      let duration = AudioCacheStore.audioDuration(at: sourceURL)
+      expectedDuration = duration.isFinite && duration > 1.0 ? duration : nil
+    } else {
+      expectedDuration = nil
+    }
+    return VocalSeparator.shared.cachedStems(
+      forSongID: song.id,
+      expectedDuration: expectedDuration)
   }
 
   private func activeSongIDs() -> Set<String> {
@@ -721,7 +757,6 @@ class AudioPlayerManager: ObservableObject {
   private func handleCachedStemsReady(songID: String) {
     guard currentSong?.id == songID else { return }
     guard aiEnabled, aiAutoAnalyze, !isRadioMode else { return }
-    preparedStemSongID = songID
     if let song = currentSong {
       prepareBackgroundStemPlaybackIfPossible(for: song)
     }
@@ -766,12 +801,11 @@ class AudioPlayerManager: ObservableObject {
 
   private func prepareBackgroundStemPlaybackIfPossible(for song: Song) {
     guard aiEnabled, aiAutoAnalyze, !isRadioMode else { return }
-    guard !anyAIEffectActive else { return }
     guard let sourceURL = localPlaybackFileURL(for: song) else { return }
-    guard let stems = VocalSeparator.shared.cachedStems(forSongID: song.id) else { return }
+    guard let stems = cachedStems(for: song, sourceURL: sourceURL) else { return }
 
     preparedStemSongID = song.id
-    guard avEngine.currentURL != nil else { return }
+    guard anyAIEffectActive else { return }
     switchActivePlaybackToStems(
       for: song, stems: stems, sourceURL: sourceURL,
       onReady: { [weak self] in self?.applyAIMixVolumes() })
@@ -795,17 +829,17 @@ class AudioPlayerManager: ObservableObject {
     let shouldResume = isPlaying
     let startAt = activePlaybackTime(for: song)
     currentPlaybackURL = sourceURL
+    aiStemSwitchInFlightSongID = song.id
     configureAudioSessionCategory()
     activateAudioSession()
     if shouldResume {
       NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
     }
-    let readyBlock: (() -> Void)? = onReady.map { callback in
-      { [weak self] in
-        guard let self else { return }
-        if !shouldResume { self.avEngine.pause() }
-        callback()
-      }
+    let readyBlock: () -> Void = { [weak self] in
+      guard let self else { return }
+      self.aiStemSwitchInFlightSongID = nil
+      if !shouldResume { self.avEngine.pause() }
+      onReady?()
     }
     if isStreamMode {
       stopStreamPlayer()
@@ -822,9 +856,6 @@ class AudioPlayerManager: ObservableObject {
         instrumentsURL: stems.instruments,
         startOffset: stems.startOffset,
         onReady: readyBlock)
-    }
-    if !shouldResume, onReady == nil {
-      avEngine.pause()
     }
     isPlaying = shouldResume
     isBuffering = false
@@ -1102,7 +1133,6 @@ class AudioPlayerManager: ObservableObject {
       }
     }
     let songID = song.id
-    let songFiles = AudioCacheStore.files(for: songID)
     let session = AudioDownloadSession(songID: songID)
     downloadSession = session
     session.onPlayableFallbackReady = { [weak self] fallbackURL in
@@ -1169,7 +1199,7 @@ class AudioPlayerManager: ObservableObject {
     }
   }
 
-  private func startPlayingFile(_ url: URL) {
+  private func startPlayingFile(_ url: URL, startAt: TimeInterval = 0) {
     suppressPlaybackEndedCallbacks()
     instrumentalTask?.cancel()
     instrumentalTask = nil
@@ -1181,7 +1211,7 @@ class AudioPlayerManager: ObservableObject {
     configureAudioSessionCategory()
     activateAudioSession()
     NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
-    avEngine.play(url: url)
+    avEngine.play(url: url, startAt: max(0, startAt))
     isPlaying = true
     isBuffering = false
     updateNowPlayingInfo(reloadArtwork: true)
@@ -1194,6 +1224,29 @@ class AudioPlayerManager: ObservableObject {
     #if canImport(UIKit)
       endTrackTransitionBackgroundTask()
     #endif
+  }
+
+  private func fallBackToMainPlayback(for song: Song, startAt: TimeInterval) {
+    suppressPlaybackEndedCallbacks()
+    aiStemSwitchInFlightSongID = nil
+    VocalSeparator.shared.cancel()
+    VocalSeparator.shared.cancelBackgroundAnalysis()
+    VocalSeparator.shared.cleanupRealtimeTemp()
+    if avEngine.mode == .aiStems {
+      avEngine.revertToMain()
+    }
+    let resumeAt = max(0, startAt.isFinite ? startAt : 0)
+    if let fileURL = localPlaybackFileURL(for: song) {
+      startPlayingFile(fileURL, startAt: resumeAt)
+      return
+    }
+    guard let remoteURL = song.audioURL else {
+      isPlaying = false
+      isBuffering = false
+      updateNowPlayingInfo(reloadArtwork: false)
+      return
+    }
+    startStreamPlayback(url: remoteURL, songID: song.id, startAt: resumeAt)
   }
 
   func togglePlayPause() {
@@ -1474,13 +1527,15 @@ class AudioPlayerManager: ObservableObject {
     streamEndObserver = NotificationCenter.default.addObserver(
       forName: .AVPlayerItemDidPlayToEndTime, object: item, queue: .main
     ) { [weak self] _ in
-      guard let self, self.isStreamMode, !self.isRadioMode else { return }
-      guard self.isPlaying else { return }
-      guard !self.avEngine.isCrossfading else { return }
-      guard self.quickCutTimer == nil else { return }
-      guard !self.suppressTransitionAfterSeek else { return }
-      guard !self.isPlaybackEndedCallbackSuppressed else { return }
-      self.playNextOrRandom()
+      Task { @MainActor [weak self] in
+        guard let self, self.isStreamMode, !self.isRadioMode else { return }
+        guard self.isPlaying else { return }
+        guard !self.avEngine.isCrossfading else { return }
+        guard self.quickCutTimer == nil else { return }
+        guard !self.suppressTransitionAfterSeek else { return }
+        guard !self.isPlaybackEndedCallbackSuppressed else { return }
+        self.playNextOrRandom()
+      }
     }
     NotificationCenter.default.post(name: MediaPlaybackCoordinator.audioWillPlay, object: nil)
     isPlaying = true
@@ -1602,15 +1657,14 @@ class AudioPlayerManager: ObservableObject {
     guard aiEnabled, anyAIEffectActive, !isRadioMode, VocalSeparator.shared.isAvailable else {
       return nil
     }
-    return VocalSeparator.shared.cachedStems(forSongID: song.id)
+    return cachedStems(for: song, sourceURL: localPlaybackFileURL(for: song))
   }
 
   private func triggerBackgroundAnalysis(for song: Song) {
     guard aiEnabled, aiAutoAnalyze, !isRadioMode, !anyAIEffectActive else { return }
     guard VocalSeparator.shared.isAvailable else { return }
 
-    if VocalSeparator.shared.cachedStems(forSongID: song.id) != nil {
-      preparedStemSongID = song.id
+    if cachedStems(for: song, sourceURL: localPlaybackFileURL(for: song)) != nil {
       prepareBackgroundStemPlaybackIfPossible(for: song)
       return
     }
@@ -1671,6 +1725,13 @@ class AudioPlayerManager: ObservableObject {
       }
       return
     }
+    if shouldKeepPreparedStems, !anyAIEffectActive {
+      if avEngine.mode == .aiStems {
+        avEngine.revertToMain()
+      }
+      triggerBackgroundAnalysis(for: song)
+      return
+    }
     cancelBackgroundAnalysisRetry()
     if anyAIEffectActive {
       VocalSeparator.shared.cancelBackgroundAnalysis()
@@ -1679,8 +1740,8 @@ class AudioPlayerManager: ObservableObject {
       applyAIMixVolumes()
       return
     }
-    if let stems = VocalSeparator.shared.cachedStems(forSongID: song.id),
-      let sourceURL = localPlaybackFileURL(for: song)
+    if let sourceURL = localPlaybackFileURL(for: song),
+      let stems = cachedStems(for: song, sourceURL: sourceURL)
     {
       DebugLogger.log("Using cached stems for \(song.id)", category: .ai)
       preparedStemSongID = song.id

@@ -28,20 +28,29 @@ extension Color {
     }
   #endif
 
-  static let appAccent = Color(red: 0.98, green: 0.176, blue: 0.282)
+  static let appAccent = Color(red: 0.98, green: 0.12, blue: 0.22)
   #if canImport(UIKit)
+    static let appBackground = adaptive(
+      light: UIColor.systemBackground,
+      dark: UIColor.black)
+    static let appSecondaryBackground = adaptive(
+      light: UIColor.secondarySystemBackground,
+      dark: UIColor(red: 0.05, green: 0.05, blue: 0.06, alpha: 1))
+    static let appGroupedBackground = adaptive(
+      light: UIColor.systemGroupedBackground,
+      dark: UIColor.black)
     static let appSheetGradientTop = adaptive(
-      light: UIColor(red: 0.97, green: 0.98, blue: 1.0, alpha: 1),
-      dark: UIColor(red: 0.10, green: 0.10, blue: 0.12, alpha: 1))
+      light: UIColor.systemBackground,
+      dark: UIColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1))
     static let appSheetGradientBottom = adaptive(
-      light: UIColor(red: 0.90, green: 0.93, blue: 0.98, alpha: 1),
+      light: UIColor.secondarySystemBackground,
       dark: .black)
     static let appGlassFill = adaptive(
-      light: UIColor.white.withAlphaComponent(0.72),
-      dark: UIColor.white.withAlphaComponent(0.14))
+      light: UIColor.white.withAlphaComponent(0.78),
+      dark: UIColor.white.withAlphaComponent(0.12))
     static let appGlassFillStrong = adaptive(
-      light: UIColor.white.withAlphaComponent(0.92),
-      dark: UIColor.white.withAlphaComponent(0.96))
+      light: UIColor.white.withAlphaComponent(0.95),
+      dark: UIColor.white.withAlphaComponent(0.18))
     static let appGlassForeground = adaptive(
       light: UIColor.label.withAlphaComponent(0.85),
       dark: UIColor.white.withAlphaComponent(0.85))
@@ -58,11 +67,11 @@ extension Color {
       light: UIColor.white.withAlphaComponent(0.45),
       dark: UIColor.black.withAlphaComponent(0.40))
     static let appDivider = adaptive(
-      light: UIColor.black.withAlphaComponent(0.10),
-      dark: UIColor.white.withAlphaComponent(0.12))
+      light: UIColor.separator.withAlphaComponent(0.42),
+      dark: UIColor.white.withAlphaComponent(0.11))
     static let appShadow = adaptive(
-      light: UIColor.black.withAlphaComponent(0.12),
-      dark: UIColor.black.withAlphaComponent(0.18))
+      light: UIColor.black.withAlphaComponent(0.16),
+      dark: UIColor.black.withAlphaComponent(0.36))
     static let appHeroShadowIdle = adaptive(
       light: UIColor.black.withAlphaComponent(0.14),
       dark: UIColor.black.withAlphaComponent(0.22))
@@ -88,28 +97,28 @@ extension Color {
       light: UIColor(red: 0.98, green: 0.98, blue: 1.0, alpha: 1),
       dark: UIColor.secondarySystemBackground)
     static let appPlaceholderPrimary = adaptive(
-      light: UIColor(red: 0.78, green: 0.84, blue: 0.96, alpha: 1),
-      dark: UIColor(red: 0.14, green: 0.16, blue: 0.22, alpha: 1))
+      light: UIColor(red: 0.86, green: 0.87, blue: 0.90, alpha: 1),
+      dark: UIColor(red: 0.12, green: 0.12, blue: 0.14, alpha: 1))
     static let appPlaceholderSecondary = adaptive(
-      light: UIColor(red: 0.86, green: 0.89, blue: 0.98, alpha: 1),
-      dark: UIColor(red: 0.10, green: 0.12, blue: 0.18, alpha: 1))
+      light: UIColor(red: 0.95, green: 0.95, blue: 0.96, alpha: 1),
+      dark: UIColor(red: 0.08, green: 0.08, blue: 0.10, alpha: 1))
     static let appPlaceholderTertiary = adaptive(
-      light: UIColor(red: 0.92, green: 0.80, blue: 0.90, alpha: 1),
-      dark: UIColor(red: 0.18, green: 0.10, blue: 0.20, alpha: 1))
+      light: UIColor(red: 0.98, green: 0.18, blue: 0.26, alpha: 1),
+      dark: UIColor(red: 0.60, green: 0.04, blue: 0.10, alpha: 1))
     static let appPlaceholderQuaternary = adaptive(
-      light: UIColor(red: 0.84, green: 0.88, blue: 0.96, alpha: 1),
-      dark: UIColor(red: 0.08, green: 0.08, blue: 0.14, alpha: 1))
+      light: UIColor(red: 0.72, green: 0.72, blue: 0.76, alpha: 1),
+      dark: UIColor(red: 0.04, green: 0.04, blue: 0.05, alpha: 1))
   #endif
 }
 
 enum AM {
   enum Radius {
-    static let thumb: CGFloat = 6
-    static let card: CGFloat = 6
-    static let hero: CGFloat = 8
+    static let thumb: CGFloat = 7
+    static let card: CGFloat = 8
+    static let hero: CGFloat = 10
     static let tile: CGFloat = 8
     static let popup: CGFloat = 6
-    static let sheet: CGFloat = 14
+    static let sheet: CGFloat = 16
   }
 
   enum Spacing {
@@ -120,12 +129,12 @@ enum AM {
     static let xl: CGFloat = 20
     static let xxl: CGFloat = 28
     static let screenMargin: CGFloat = 16
-    static let shelfSpacing: CGFloat = 28
-    static let shelfTile: CGFloat = 170
+    static let shelfSpacing: CGFloat = 30
+    static let shelfTile: CGFloat = 168
   }
 
   enum Font {
-    static let sectionHeader = SwiftUI.Font.system(size: 22, weight: .bold)
+    static let sectionHeader = SwiftUI.Font.system(size: 23, weight: .bold)
     static let groupHeader = SwiftUI.Font.system(size: 17, weight: .bold)
     static let tileTitle = SwiftUI.Font.system(size: 15, weight: .semibold)
     static let tileCaption = SwiftUI.Font.system(size: 13)
@@ -138,7 +147,7 @@ enum AM {
   }
 
   enum Shadow {
-    static let card = ShadowStyle(color: .appShadow, radius: 10, y: 4)
+    static let card = ShadowStyle(color: .appShadow, radius: 12, y: 5)
     static let heroIdle = ShadowStyle(color: .appHeroShadowIdle, radius: 16, y: 10)
     static let heroPlaying = ShadowStyle(color: .appHeroShadowPlaying, radius: 28, y: 18)
   }
@@ -153,6 +162,9 @@ enum AM {
 extension View {
   func amShadow(_ style: AM.ShadowStyle) -> some View {
     self.shadow(color: style.color, radius: style.radius, y: style.y)
+  }
+  func musicScreenBackground() -> some View {
+    self.background(Color.appBackground.ignoresSafeArea())
   }
 }
 
@@ -181,7 +193,7 @@ struct AMSectionHeader<Destination: View>: View {
     .padding(.horizontal, AM.Spacing.screenMargin)
   }
   private func headerRow(showChevron: Bool) -> some View {
-    HStack(alignment: .firstTextBaseline, spacing: AM.Spacing.xs) {
+    HStack(alignment: .firstTextBaseline, spacing: AM.Spacing.s) {
       Text(title)
         .font(AM.Font.sectionHeader)
         .foregroundColor(.primary)
@@ -192,6 +204,7 @@ struct AMSectionHeader<Destination: View>: View {
       }
       Spacer()
     }
+    .padding(.top, 2)
     .contentShape(Rectangle())
   }
 }

@@ -46,11 +46,12 @@ struct LoadingImage: View {
   var body: some View {
     GeometryReader { geo in
       let pixelSize = NSValue(cgSize: thumbnailPixelSize(for: geo.size))
-      let context: [SDWebImageContextOption: Any] = fullResolution
+      let context: [SDWebImageContextOption: Any] =
+        fullResolution
         ? [:] : [.imageThumbnailPixelSize: pixelSize]
       ZStack {
         if !transparentBackground {
-          Color(.systemGray5)
+          MusicArtworkPlaceholder()
         }
         if let lowResURL, !fullLoaded {
           WebImage(
@@ -77,7 +78,7 @@ struct LoadingImage: View {
             .aspectRatio(contentMode: contentMode)
             .frame(width: geo.size.width, height: geo.size.height)
             .clipped()
-            .transition(.opacity)
+            .transition(.opacity.animation(.easeInOut(duration: 0.22)))
         } placeholder: {
           if showsLoading && lowResURL == nil {
             LoadingIndicator(size: min(geo.size.width, geo.size.height) * 0.5)
@@ -104,6 +105,25 @@ struct LoadingImage: View {
     let h = max(displaySize.height, 1) * scale
     let cap = ImageCacheConfig.thumbnailPixelSize
     return CGSize(width: min(w, cap.width), height: min(h, cap.height))
+  }
+
+  private struct MusicArtworkPlaceholder: View {
+    var body: some View {
+      LinearGradient(
+        colors: [
+          .appPlaceholderSecondary,
+          .appPlaceholderPrimary,
+          .appPlaceholderQuaternary,
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+      )
+      .overlay {
+        Image(systemName: "music.note")
+          .font(.system(size: 22, weight: .semibold))
+          .foregroundStyle(.secondary.opacity(0.55))
+      }
+    }
   }
 }
 

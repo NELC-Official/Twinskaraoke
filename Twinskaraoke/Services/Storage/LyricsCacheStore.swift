@@ -22,12 +22,20 @@ enum LyricsCacheStore {
     else {
       return nil
     }
+    if cached.lines.isEmpty {
+      try? fm.removeItem(at: url)
+      return nil
+    }
     CacheManager.shared.recordAccess(for: url)
     return cached.lines.map { $0.asLyricLine() }
   }
 
   static func save(_ lyrics: [LyricLine], songID: String, variant: LyricsCacheVariant) {
     let url = cacheFileURL(for: songID, variant: variant)
+    guard !lyrics.isEmpty else {
+      try? fm.removeItem(at: url)
+      return
+    }
     let document = CachedLyricsDocument(
       savedAt: Date(),
       lines: lyrics.map(CachedLyricLine.init)
@@ -44,7 +52,9 @@ enum LyricsCacheStore {
   }
 
   private static func cacheFileURL(for songID: String, variant: LyricsCacheVariant) -> URL {
-    cacheDirectory.appendingPathComponent("\(songID).\(variant.rawValue).json")
+    let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+    let safeID = String(songID.unicodeScalars.map { allowed.contains($0) ? Character($0) : "_" })
+    return cacheDirectory.appendingPathComponent("\(safeID).\(variant.rawValue).json")
   }
 }
 

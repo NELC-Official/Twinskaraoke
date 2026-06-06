@@ -15,8 +15,8 @@ struct PlayerArtworkView: View {
       .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
       .id(song.id)
       .amShadow(audioManager.isPlaying ? AM.Shadow.heroPlaying : AM.Shadow.heroIdle)
-      .scaleEffect(audioManager.isPlaying ? 1.0 : 0.86)
-      .animation(.spring(response: 0.5, dampingFraction: 0.78), value: audioManager.isPlaying)
+      .scaleEffect(audioManager.isPlaying ? 1.0 : 0.93)
+      .animation(.spring(response: 0.55, dampingFraction: 0.86), value: audioManager.isPlaying)
       if audioManager.isBuffering {
         RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous)
           .fill(Color.appArtworkOverlay)

@@ -17,7 +17,7 @@ nonisolated struct LossyArray<Element: Decodable>: Decodable, Sendable where Ele
   }
 }
 
-private struct DiscardedDecodable: Decodable, Sendable {}
+nonisolated private struct DiscardedDecodable: Decodable, Sendable {}
 
 nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
   let id: String
@@ -63,7 +63,7 @@ nonisolated struct Song: Codable, Identifiable, Equatable, Sendable {
     let artists = coverArtists ?? []
     let isNeuro = artists.contains { Self.neuroArtistNames.contains($0) }
     guard isNeuro || userUploaded == true else { return nil }
-    return FallbackArtProvider.shared.art(for: id).artistName
+    return FallbackArtProvider.shared.art(for: id)?.artistName
   }
   var audioURL: URL? {
     guard let path = absolutePath else { return nil }

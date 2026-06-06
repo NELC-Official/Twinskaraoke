@@ -1,12 +1,12 @@
 import Foundation
 
-struct FallbackArt {
+nonisolated struct FallbackArt: Sendable {
   let url: URL
   let artistName: String?
   let artistLink: String?
 }
 
-final class FallbackArtProvider: @unchecked Sendable {
+nonisolated final class FallbackArtProvider: @unchecked Sendable {
   static let shared = FallbackArtProvider()
 
   private var items: [FallbackArtItem] = []
@@ -14,42 +14,52 @@ final class FallbackArtProvider: @unchecked Sendable {
   private let lock = NSLock()
   private let persistKey = "nk.fallbackArtCache"
 
-  private static let defaultURL = URL(
-    string: "\(StorageHost.images)/WxURxyML82UkE7gY-PiBKw/277232b2-e00e-426b-ffb8-bb8664a73600/quality=95"
-  )!
-
   private init() {
     loadPersistedCache()
     fetch()
   }
 
-  func art(for id: String) -> FallbackArt {
+  func art(for id: String) -> FallbackArt? {
     lock.lock()
     if let cached = cache[id] {
+      if let repaired = repairedBindingIfNeeded(for: id, cached: cached) {
+        lock.unlock()
+        return repaired
+      }
       lock.unlock()
       return cached
     }
-    let result: FallbackArt
     if items.isEmpty {
       if let persisted = loadPersistedEntry(for: id) {
-        cache[id] = persisted
+        if isPersistedDuplicateWithoutReplacement(for: id, art: persisted) {
+          cache.removeValue(forKey: id)
+          removePersistedEntry(id: id)
+          lock.unlock()
+          return nil
+        }
+        if let repaired = repairedBindingIfNeeded(for: id, cached: persisted) {
+          lock.unlock()
+          return repaired
+        }
+        assign(persisted, to: id)
         lock.unlock()
         return persisted
       }
-      result = FallbackArt(url: Self.defaultURL, artistName: nil, artistLink: nil)
-    } else {
-      let index = Self.stableHash(id) % items.count
-      let item = items[index]
-      result = FallbackArt(url: item.url, artistName: item.artistName, artistLink: item.artistLink)
-      persistEntry(id: id, url: item.url, artistName: item.artistName, artistLink: item.artistLink)
+      lock.unlock()
+      return nil
     }
-    cache[id] = result
+    guard let item = nextUnusedItem(for: id) else {
+      lock.unlock()
+      return nil
+    }
+    let result = FallbackArt(url: item.url, artistName: item.artistName, artistLink: item.artistLink)
+    assign(result, to: id)
     lock.unlock()
     return result
   }
 
-  func url(for id: String) -> URL {
-    art(for: id).url
+  func url(for id: String) -> URL? {
+    art(for: id)?.url
   }
 
   func resetBindings() {
@@ -59,11 +69,11 @@ final class FallbackArtProvider: @unchecked Sendable {
     UserDefaults.standard.removeObject(forKey: persistKey)
   }
 
-  var randomURL: URL {
+  var randomURL: URL? {
     lock.lock()
     let cached = items
     lock.unlock()
-    guard !cached.isEmpty else { return Self.defaultURL }
+    guard !cached.isEmpty else { return nil }
     return cached[Int.random(in: 0..<cached.count)].url
   }
 
@@ -75,11 +85,78 @@ final class FallbackArtProvider: @unchecked Sendable {
     return Int(hash % UInt64(Int.max))
   }
 
+  private func repairedBindingIfNeeded(for id: String, cached: FallbackArt) -> FallbackArt? {
+    guard !items.isEmpty else {
+      cache[id] = cached
+      return nil
+    }
+    let availableURLs = Set(items.map { $0.url })
+    let staleBinding = !availableURLs.contains(cached.url)
+    let usedByOtherSong = cache.contains { otherID, otherArt in
+      otherID != id && otherArt.url == cached.url
+    }
+    guard staleBinding || usedByOtherSong else {
+      cache[id] = cached
+      return nil
+    }
+    guard let item = nextUnusedItem(for: id, excludingID: id) else {
+      cache.removeValue(forKey: id)
+      removePersistedEntry(id: id)
+      return nil
+    }
+    let replacement = FallbackArt(url: item.url, artistName: item.artistName, artistLink: item.artistLink)
+    assign(replacement, to: id)
+    return replacement
+  }
+
+  private func nextUnusedItem(for id: String, excludingID: String? = nil) -> FallbackArtItem? {
+    let availableURLs = Set(items.map { $0.url })
+    let used = Set(
+      cache.compactMap { entry -> URL? in
+        if entry.key == excludingID { return nil }
+        return availableURLs.contains(entry.value.url) ? entry.value.url : nil
+      })
+    guard used.count < items.count else { return nil }
+    let start = Self.stableHash(id) % items.count
+    for offset in 0..<items.count {
+      let item = items[(start + offset) % items.count]
+      if !used.contains(item.url) {
+        return item
+      }
+    }
+    return nil
+  }
+
+  private func isPersistedDuplicateWithoutReplacement(for id: String, art: FallbackArt) -> Bool {
+    items.isEmpty
+      && cache.contains { otherID, otherArt in
+        otherID != id && otherArt.url == art.url
+      }
+  }
+
+  private func assign(_ art: FallbackArt, to id: String) {
+    cache[id] = art
+    persistEntry(id: id, url: art.url, artistName: art.artistName, artistLink: art.artistLink)
+  }
+
   private func loadPersistedCache() {
     guard let dict = UserDefaults.standard.dictionary(forKey: persistKey) as? [String: [String: String]] else { return }
+    var usedURLs = Set<URL>()
+    var cleaned = dict
     for (id, entry) in dict {
-      guard let urlStr = entry["url"], let url = URL(string: urlStr) else { continue }
+      guard let urlStr = entry["url"], let url = URL(string: urlStr) else {
+        cleaned.removeValue(forKey: id)
+        continue
+      }
+      guard !usedURLs.contains(url) else {
+        cleaned.removeValue(forKey: id)
+        continue
+      }
+      usedURLs.insert(url)
       cache[id] = FallbackArt(url: url, artistName: entry["artistName"], artistLink: entry["artistLink"])
+    }
+    if cleaned.count != dict.count {
+      UserDefaults.standard.set(cleaned, forKey: persistKey)
     }
   }
 
@@ -101,6 +178,12 @@ final class FallbackArtProvider: @unchecked Sendable {
     UserDefaults.standard.set(dict, forKey: persistKey)
   }
 
+  private func removePersistedEntry(id: String) {
+    var dict = (UserDefaults.standard.dictionary(forKey: persistKey) as? [String: [String: String]]) ?? [:]
+    dict.removeValue(forKey: id)
+    UserDefaults.standard.set(dict, forKey: persistKey)
+  }
+
   private func fetch() {
     let urlString = "\(StorageHost.api)/api/media/gallery?page=1&pageSize=48&search=&tag=Twins&sort=newest&hideWebM=false"
     guard let url = URL(string: urlString) else { return }
@@ -114,29 +197,55 @@ final class FallbackArtProvider: @unchecked Sendable {
         guard let url = URL(string: "\(StorageHost.images)\(path)/quality=95") else { return nil }
         return FallbackArtItem(url: url, artistName: item.artist?.name, artistLink: item.artist?.socialLink)
       }
+      let uniqueItems = parsed.reduce(into: [FallbackArtItem]()) { result, item in
+        guard !result.contains(where: { $0.url == item.url }) else { return }
+        result.append(item)
+      }
       self.lock.lock()
-      self.items = parsed
+      self.items = uniqueItems
+      self.repairDuplicateBindings()
       self.lock.unlock()
     }.resume()
   }
+
+  private func repairDuplicateBindings() {
+    guard !items.isEmpty else { return }
+    let availableURLs = Set(items.map { $0.url })
+    var used = Set<URL>()
+    for id in cache.keys.sorted() {
+      guard let art = cache[id] else { continue }
+      if availableURLs.contains(art.url), !used.contains(art.url) {
+        used.insert(art.url)
+        continue
+      }
+      cache.removeValue(forKey: id)
+      guard let item = nextUnusedItem(for: id) else {
+        removePersistedEntry(id: id)
+        continue
+      }
+      let replacement = FallbackArt(url: item.url, artistName: item.artistName, artistLink: item.artistLink)
+      assign(replacement, to: id)
+      used.insert(replacement.url)
+    }
+  }
 }
 
-private struct FallbackArtItem {
+nonisolated private struct FallbackArtItem: Sendable {
   let url: URL
   let artistName: String?
   let artistLink: String?
 }
 
-private struct GalleryResponse: Decodable {
+nonisolated private struct GalleryResponse: Decodable {
   let items: [GalleryItem]
 }
 
-private struct GalleryItem: Decodable {
+nonisolated private struct GalleryItem: Decodable {
   let absolutePath: String?
   let artist: GalleryArtistInfo?
 }
 
-private struct GalleryArtistInfo: Decodable {
+nonisolated private struct GalleryArtistInfo: Decodable {
   let name: String?
   let socialLink: String?
 }

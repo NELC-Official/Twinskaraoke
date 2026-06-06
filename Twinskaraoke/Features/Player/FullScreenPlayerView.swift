@@ -95,11 +95,16 @@ struct FullScreenPlayerView: View {
         fetchCoverArtArtist(songID: id)
       }
       if showLyrics, !audioManager.isRadioMode, let id = newId {
-        if let prefetched = upcomingLyricsViewModel.lyrics.isEmpty
-          ? nil : upcomingLyricsViewModel.lyrics,
-          upcomingLyricsViewModel.loadedSongID == id
+        if upcomingLyricsViewModel.loadedSongID == id,
+          !upcomingLyricsViewModel.didFail,
+          !upcomingLyricsViewModel.isLoading,
+          (!upcomingLyricsViewModel.lyrics.isEmpty || upcomingLyricsViewModel.hasNoLyrics)
         {
-          lyricsViewModel.adopt(songID: id, lyrics: prefetched)
+          lyricsViewModel.adopt(
+            songID: id,
+            lyrics: upcomingLyricsViewModel.lyrics,
+            hasNoLyrics: upcomingLyricsViewModel.hasNoLyrics
+          )
         } else {
           lyricsViewModel.fetch(songID: id)
         }
@@ -428,8 +433,8 @@ struct FullScreenPlayerView: View {
   private func fetchCoverArtArtist(songID: String) {
     if let song = audioManager.currentSong, song.fallbackArtCredit != nil {
       let fallback = FallbackArtProvider.shared.art(for: song.id)
-      coverArtArtistName = fallback.artistName
-      coverArtArtistLink = fallback.artistLink
+      coverArtArtistName = fallback?.artistName
+      coverArtArtistLink = fallback?.artistLink
       return
     }
     guard let url = URL(string: "\(StorageHost.api)/api/songs/\(songID)") else { return }

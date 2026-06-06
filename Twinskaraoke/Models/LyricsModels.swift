@@ -31,24 +31,62 @@ nonisolated struct LyricLine: Identifiable, Codable {
   }
 }
 
-nonisolated struct RawLyricLine: Codable {
+nonisolated struct RawLyricLine: Decodable {
   let time: String
   let text: String
+
+  enum CodingKeys: String, CodingKey {
+    case time
+    case text
+  }
+
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    if let value = try? container.decode(String.self, forKey: .time) {
+      time = value
+    } else if let value = try? container.decode(Double.self, forKey: .time) {
+      time = String(value)
+    } else if let value = try? container.decode(Int.self, forKey: .time) {
+      time = String(value)
+    } else {
+      time = ""
+    }
+    text = (try? container.decode(String.self, forKey: .text)) ?? ""
+  }
 }
 
 nonisolated enum TimeSpanParser {
   static func parse(_ raw: String) -> TimeInterval? {
-    let parts = raw.split(separator: ":")
-    guard parts.count == 3 else { return nil }
-    guard let hours = Double(parts[0]),
-      let minutes = Double(parts[1])
-    else { return nil }
-    let secParts = parts[2].split(separator: ".")
-    guard let wholeSeconds = Double(secParts[0]) else { return nil }
-    var fraction: Double = 0
-    if secParts.count > 1 {
-      fraction = Double("0." + secParts[1]) ?? 0
+    let normalized = raw
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+      .trimmingCharacters(in: CharacterSet(charactersIn: "[]"))
+      .replacingOccurrences(of: ",", with: ".")
+    guard !normalized.isEmpty else { return nil }
+    if let seconds = Double(normalized), seconds >= 0 {
+      return seconds
     }
-    return hours * 3600 + minutes * 60 + wholeSeconds + fraction
+
+    let parts = normalized.split(separator: ":", omittingEmptySubsequences: false)
+    let parsed: TimeInterval?
+    switch parts.count {
+    case 2:
+      guard let minutes = Double(parts[0]), let seconds = Double(parts[1]) else {
+        return nil
+      }
+      parsed = minutes * 60 + seconds
+    case 3:
+      guard let hours = Double(parts[0]),
+        let minutes = Double(parts[1]),
+        let seconds = Double(parts[2])
+      else {
+        return nil
+      }
+      parsed = hours * 3600 + minutes * 60 + seconds
+    default:
+      parsed = nil
+    }
+
+    guard let parsed, parsed >= 0 else { return nil }
+    return parsed
   }
 }

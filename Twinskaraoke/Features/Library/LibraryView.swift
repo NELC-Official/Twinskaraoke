@@ -163,8 +163,11 @@ struct LibraryView: View {
           .listSectionSpacing(8)
         }
       }
-      .listStyle(.insetGrouped)
+      .listStyle(.plain)
+      .scrollContentBackground(.hidden)
+      .musicScreenBackground()
       .navigationTitle("Library")
+      .navigationBarTitleDisplayMode(.large)
       .refreshable {
         favorites.loadIfNeeded()
         viewModel.fetchPlaylists()
@@ -192,14 +195,14 @@ struct LibraryRow: View {
   var body: some View {
     HStack(spacing: 14) {
       Image(systemName: icon)
-        .font(.system(size: 20, weight: .medium))
+        .font(.system(size: 22, weight: .medium))
         .foregroundColor(color)
-        .frame(width: 28)
+        .frame(width: 30)
       Text(title)
-        .font(.system(size: 17))
+        .font(.system(size: 19, weight: .regular))
       Spacer()
     }
-    .padding(.vertical, 4)
+    .padding(.vertical, 7)
   }
 }
 
@@ -299,13 +302,13 @@ struct PlaylistGridCell: View {
   let playlist: Playlist
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
-      PlaylistArtwork(playlist: playlist, cornerRadius: 10)
+      PlaylistArtwork(playlist: playlist, cornerRadius: AM.Radius.card)
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .shadow(color: .black.opacity(0.18), radius: 10, y: 4)
+        .clipShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+        .amShadow(AM.Shadow.card)
       Text(playlist.name)
-        .font(.system(size: 14, weight: .bold))
+        .font(AM.Font.tileTitle)
         .foregroundColor(.primary)
         .lineLimit(1)
       PlaylistSongCountLabel(playlist: playlist, fallbackText: "Playlist")
@@ -325,10 +328,7 @@ struct RecentlyAddedSection: View {
   ]
   var body: some View {
     VStack(alignment: .leading, spacing: 14) {
-      Text("Recently Added")
-        .font(.system(size: 22, weight: .bold))
-        .foregroundColor(.primary)
-        .padding(.horizontal, 16)
+      AMSectionHeader("Recently Added")
       LazyVGrid(columns: cols, spacing: 22) {
         ForEach(playlists) { playlist in
           Button {
@@ -353,8 +353,8 @@ struct RecentlyAddedTile: View {
       PlaylistArtwork(playlist: playlist, cornerRadius: 6)
         .aspectRatio(1, contentMode: .fit)
         .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+        .amShadow(AM.Shadow.card)
       VStack(alignment: .leading, spacing: 2) {
         Text(playlist.name)
           .font(.system(size: 16, weight: .semibold))

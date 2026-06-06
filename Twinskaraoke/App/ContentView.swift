@@ -32,7 +32,7 @@ private struct PopupHostView: View {
   private var rootTabs: some View {
     TabView {
       HomeView()
-        .tabItem { Label("Home", systemImage: "house.fill") }
+        .tabItem { Label("Listen Now", systemImage: "play.circle.fill") }
       RadioView()
         .tabItem { Label("Radio", systemImage: "dot.radiowaves.left.and.right") }
       LibraryView()
@@ -123,18 +123,26 @@ private struct PopupBarTrailingItems: View, Equatable {
   var body: some View {
     HStack(spacing: 16) {
       Button(action: onTogglePlayPause) {
-        Image(systemName: playPauseSymbol)
-          .font(.system(size: 24, weight: .regular))
-          .foregroundColor(.primary)
-          .frame(width: 32, height: 32)
-          .contentShape(Rectangle())
+        Group {
+          if #available(iOS 17.0, *) {
+            Image(systemName: playPauseSymbol)
+              .contentTransition(.symbolEffect(.replace))
+          } else {
+            Image(systemName: playPauseSymbol)
+              .contentTransition(.opacity)
+          }
+        }
+        .font(.system(size: 23, weight: .semibold))
+        .foregroundColor(.primary)
+        .frame(width: 34, height: 34)
+        .contentShape(Rectangle())
       }
       if !isRadioMode {
         Button(action: onNext) {
           Image(systemName: "forward.fill")
-            .font(.system(size: 22, weight: .regular))
+            .font(.system(size: 21, weight: .semibold))
             .foregroundColor(.primary)
-            .frame(width: 32, height: 32)
+            .frame(width: 34, height: 34)
             .contentShape(Rectangle())
         }
       }

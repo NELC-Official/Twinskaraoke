@@ -42,9 +42,11 @@ struct SongRow: View {
     HStack(spacing: 12) {
       ZStack {
         if showsArtwork {
-          LoadingImage(url: audioManager.displayImageURL(for: song), cornerRadius: size.cornerRadius)
-            .frame(width: size.artSize, height: size.artSize)
-            .clipShape(RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous))
+          LoadingImage(
+            url: audioManager.displayImageURL(for: song), cornerRadius: size.cornerRadius
+          )
+          .frame(width: size.artSize, height: size.artSize)
+          .clipShape(RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous))
         } else {
           RoundedRectangle(cornerRadius: size.cornerRadius, style: .continuous)
             .fill(Color(.tertiarySystemFill))
@@ -123,13 +125,15 @@ struct SongRow: View {
           }
         } label: {
           Image(systemName: "ellipsis")
-            .font(.system(size: 14))
+            .font(.system(size: 16, weight: .semibold))
             .foregroundColor(.secondary)
-            .frame(width: 28, height: 28)
-            .contentShape(Rectangle())
+            .frame(width: 32, height: 32)
+            .background(.primary.opacity(0.055), in: Circle())
+            .contentShape(Circle())
         }
       }
     }
+    .padding(.vertical, size == .regular ? 5 : 3)
     .contentShape(Rectangle())
     .sheet(isPresented: $showAddToPlaylist) {
       AddToPlaylistSheet(song: song)

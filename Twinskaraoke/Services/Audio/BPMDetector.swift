@@ -1,12 +1,15 @@
-import AVFoundation
+@preconcurrency import AVFoundation
 import Accelerate
 import Foundation
 
 enum BPMDetector {
   static func detect(url: URL) async -> Double? {
-    await withCheckedContinuation { continuation in
+    let asset = AVURLAsset(url: url)
+    guard let track = try? await asset.loadTracks(withMediaType: .audio).first else { return nil }
+    let duration = (try? await asset.load(.duration)) ?? .invalid
+    return await withCheckedContinuation { continuation in
       DispatchQueue.global(qos: .utility).async {
-        let result = detectSync(url: url)
+        let result = detectSync(asset: asset, track: track, duration: duration)
         continuation.resume(returning: result)
       }
     }
@@ -26,8 +29,8 @@ enum BPMDetector {
 
   private static let confidenceThreshold: Float = 1.4
 
-  private static func detectSync(url: URL) -> Double? {
-    guard let samples = loadMonoSamples(url: url) else { return nil }
+  private static func detectSync(asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) -> Double? {
+    guard let samples = loadMonoSamples(asset: asset, track: track, duration: duration) else { return nil }
     guard samples.count > windowSize else { return nil }
 
     let envelope = onsetEnvelope(samples)
@@ -36,9 +39,7 @@ enum BPMDetector {
     return bpmFromAutocorrelation(envelope)
   }
 
-  private static func loadMonoSamples(url: URL) -> [Float]? {
-    let asset = AVURLAsset(url: url)
-    guard let track = asset.tracks(withMediaType: .audio).first else { return nil }
+  private static func loadMonoSamples(asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) -> [Float]? {
     guard let reader = try? AVAssetReader(asset: asset) else { return nil }
 
     let outputSettings: [String: Any] = [
@@ -53,7 +54,7 @@ enum BPMDetector {
     let output = AVAssetReaderTrackOutput(track: track, outputSettings: outputSettings)
     reader.add(output)
 
-    let totalSeconds = asset.duration.seconds
+    let totalSeconds = duration.seconds
     guard totalSeconds > 5 else {
       return readAllSamples(reader: reader, output: output, maxFrames: nil)
     }

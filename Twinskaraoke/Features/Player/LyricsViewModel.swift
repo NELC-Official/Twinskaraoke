@@ -25,15 +25,20 @@ final class LyricsViewModel: ObservableObject {
     lyrics.contains { ($0.translatedText?.isEmpty == false) && $0.translatedText != $0.text }
   }
 
-  func adopt(songID: String, lyrics: [LyricLine]) {
+  func adopt(songID: String, lyrics: [LyricLine], hasNoLyrics: Bool = false) {
     cancelInFlight()
     inFlightSongID = nil
     loadedSongID = songID
     self.lyrics = lyrics
     isLoading = false
     didFail = false
-    hasNoLyrics = lyrics.isEmpty
-    refreshTranslationState(for: lyrics)
+    let resolvedHasNoLyrics = hasNoLyrics || lyrics.isEmpty
+    self.hasNoLyrics = resolvedHasNoLyrics
+    if resolvedHasNoLyrics {
+      translationState = .idle
+    } else {
+      refreshTranslationState(for: lyrics)
+    }
   }
 
   func fetch(songID: String) {
@@ -49,8 +54,8 @@ final class LyricsViewModel: ObservableObject {
       lyrics = cachedTranslated
       isLoading = false
       didFail = false
-      hasNoLyrics = cachedTranslated.isEmpty
-      translationState = cachedTranslated.isEmpty ? .idle : .ready
+      hasNoLyrics = false
+      translationState = .ready
       return
     }
 
@@ -59,7 +64,7 @@ final class LyricsViewModel: ObservableObject {
       lyrics = cachedOriginal
       isLoading = false
       didFail = false
-      hasNoLyrics = cachedOriginal.isEmpty
+      hasNoLyrics = false
       refreshTranslationState(for: cachedOriginal)
       return
     }
@@ -200,8 +205,8 @@ final class LyricsViewModel: ObservableObject {
       didFail = false
       hasNoLyrics = true
       translationState = .idle
-      LyricsCacheStore.save([], songID: songID, variant: .original)
     case .failure:
+      loadedSongID = songID
       lyrics = []
       didFail = true
       hasNoLyrics = false

@@ -214,7 +214,7 @@ final class GenresViewModel: ObservableObject {
     }
   }
 
-  private static let neuroFallbackURL = FallbackArtProvider.shared.randomURL
+  private static let neuroFallbackURL: URL? = FallbackArtProvider.shared.randomURL
 
   private func fetchDetail(for genre: GenreSummary) {
     if allSongs[genre.id] != nil { return }

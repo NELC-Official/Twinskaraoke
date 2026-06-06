@@ -6,8 +6,8 @@ struct AppleMusicProgressBar: View {
   let onSeekEnd: (Double) -> Void
   var trackColor: Color = Color.primary.opacity(0.22)
   var fillColor: Color = .primary
-  var idleHeight: CGFloat = 7
-  var activeHeight: CGFloat = 12
+  var idleHeight: CGFloat = 5
+  var activeHeight: CGFloat = 9
   var body: some View {
     GeometryReader { geo in
       let height: CGFloat = isScrubbing ? activeHeight : idleHeight

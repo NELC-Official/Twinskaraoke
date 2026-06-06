@@ -1,6 +1,6 @@
 import Foundation
 
-enum GuestIdentity {
+nonisolated enum GuestIdentity {
   private static let storageKey = "nk.guestId"
   private static let tokenKey = "nk.token"
   static let current: String = {

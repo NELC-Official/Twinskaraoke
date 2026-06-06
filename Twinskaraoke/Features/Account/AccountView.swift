@@ -18,7 +18,10 @@ struct AccountView: View {
         if auth.isLoggedIn { signOutSection }
       }
       .listStyle(.insetGrouped)
+      .scrollContentBackground(.hidden)
+      .background(Color.appGroupedBackground.ignoresSafeArea())
       .navigationTitle("Account")
+      .navigationBarTitleDisplayMode(.large)
       .refreshable { if auth.isLoggedIn { await loadData() } }
       .sheet(isPresented: $showLoginSheet) {
         LoginSheet(auth: auth)
@@ -164,7 +167,9 @@ struct AccountView: View {
 
   private func handleLevelChange(with newProfile: Profile) {
     guard let level = newProfile.level, level > 0 else { return }
-    guard let identity = auth.currentUserId ?? auth.currentUsername, !identity.isEmpty else { return }
+    guard let identity = auth.currentUserId ?? auth.currentUsername, !identity.isEmpty else {
+      return
+    }
 
     let key = "nk.lastSeenLevel.\(identity)"
     let defaults = UserDefaults.standard

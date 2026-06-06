@@ -40,14 +40,17 @@ struct SearchView: View {
             .listRowInsets(EdgeInsets(top: 4, leading: 16, bottom: 4, trailing: 16))
           }
           .listStyle(.plain)
+          .scrollContentBackground(.hidden)
           .transition(.opacity)
         }
       }
+      .musicScreenBackground()
       .animation(
         .easeInOut(duration: 0.3),
         value: "\(viewModel.isSearching)-\(viewModel.results.count)-\(viewModel.searchText.isEmpty)"
       )
       .navigationTitle("Search")
+      .navigationBarTitleDisplayMode(.large)
       .searchable(
         text: $viewModel.searchText,
         placement: .navigationBarDrawer(displayMode: .always),
@@ -193,6 +196,7 @@ private struct BrowseCategoriesView: View {
       .padding(.top, AM.Spacing.s)
       .padding(.bottom, AM.Spacing.l)
     }
+    .musicScreenBackground()
     .refreshable {
       genresVM.loadIfNeeded()
       topChartVM.loadIfNeeded()
@@ -354,14 +358,15 @@ private struct CategoryTile: View {
       )
       .allowsHitTesting(false)
       Text(title)
-        .font(.system(size: 17, weight: .bold))
+        .font(.system(size: 18, weight: .bold))
         .foregroundColor(.white)
         .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
         .padding(AM.Spacing.m)
         .allowsHitTesting(false)
     }
-    .frame(height: 96)
+    .frame(height: 98)
     .clipShape(RoundedRectangle(cornerRadius: AM.Radius.tile, style: .continuous))
+    .amShadow(AM.Shadow.card)
     .contentShape(RoundedRectangle(cornerRadius: AM.Radius.tile, style: .continuous))
   }
 }

@@ -232,14 +232,14 @@ final class AVEnginePlayback {
   ]
   private var engineConfigObserver: Any?
 
-  nonisolated(unsafe) private static let standardSampleRate: Double = 44_100
-  private static let constrainedMemoryThreshold: UInt64 = 4 * 1_024 * 1_024 * 1_024
-  private static let constrainedPlaybackBufferLimitBytes: Int64 = 48 * 1_024 * 1_024
-  private static let defaultPlaybackBufferLimitBytes: Int64 = 96 * 1_024 * 1_024
-  private static let constrainedPrefetchBufferLimitBytes: Int64 = 24 * 1_024 * 1_024
-  private static let defaultPrefetchBufferLimitBytes: Int64 = 48 * 1_024 * 1_024
-  private static let constrainedTransitionTicksPerSecond: Double = 18
-  private static let defaultTransitionTicksPerSecond: Double = 24
+  nonisolated private static let standardSampleRate: Double = 44_100
+  nonisolated private static let constrainedMemoryThreshold: UInt64 = 4 * 1_024 * 1_024 * 1_024
+  nonisolated private static let constrainedPlaybackBufferLimitBytes: Int64 = 48 * 1_024 * 1_024
+  nonisolated private static let defaultPlaybackBufferLimitBytes: Int64 = 96 * 1_024 * 1_024
+  nonisolated private static let constrainedPrefetchBufferLimitBytes: Int64 = 24 * 1_024 * 1_024
+  nonisolated private static let defaultPrefetchBufferLimitBytes: Int64 = 48 * 1_024 * 1_024
+  nonisolated private static let constrainedTransitionTicksPerSecond: Double = 18
+  nonisolated private static let defaultTransitionTicksPerSecond: Double = 24
 
   init() {
     let fmt = AVAudioFormat(
@@ -501,9 +501,8 @@ final class AVEnginePlayback {
     else { return nil }
 
     let readChunkFrames: AVAudioFrameCount = 16384
-    var reachedEnd = false
     let inputBlock: AVAudioConverterInputBlock = { _, outStatus in
-      if Task.isCancelled || reachedEnd {
+      if Task.isCancelled {
         outStatus.pointee = .endOfStream
         return nil
       }
@@ -519,11 +518,9 @@ final class AVEnginePlayback {
         return nil
       }
       if chunk.frameLength == 0 {
-        reachedEnd = true
         outStatus.pointee = .endOfStream
         return nil
       }
-      if inputFile.framePosition >= inputFrames { reachedEnd = true }
       outStatus.pointee = .haveData
       return chunk
     }

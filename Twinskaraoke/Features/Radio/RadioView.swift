@@ -11,7 +11,7 @@ struct RadioView: View {
             RadioSkeletonView()
               .transition(.opacity)
           } else {
-            VStack(spacing: 24) {
+            VStack(spacing: AM.Spacing.shelfSpacing) {
               stationCard
               hostedStationsSection
               featuredShowsSection
@@ -23,9 +23,12 @@ struct RadioView: View {
           }
         }
         .animation(.easeInOut(duration: 0.4), value: radio.nowPlaying == nil)
-        .padding(.vertical, 12)
+        .padding(.top, AM.Spacing.l)
+        .padding(.bottom, AM.Spacing.l)
       }
+      .musicScreenBackground()
       .navigationTitle("Radio")
+      .navigationBarTitleDisplayMode(.large)
       .refreshable { await radio.refresh() }
       .onAppear { radio.start() }
     }
@@ -40,7 +43,7 @@ struct RadioView: View {
       ZStack(alignment: .topLeading) {
         Group {
           if let art = song?.art, let url = URL(string: art) {
-            LoadingImage(url: url, cornerRadius: 14, contentMode: .fill)
+            LoadingImage(url: url, cornerRadius: AM.Radius.hero, contentMode: .fill)
           } else {
             artPlaceholder
           }
@@ -61,16 +64,19 @@ struct RadioView: View {
       }
       .frame(maxWidth: 280, maxHeight: 280)
       .aspectRatio(1, contentMode: .fit)
-      .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-      .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+      .clipShape(RoundedRectangle(cornerRadius: AM.Radius.hero, style: .continuous))
+      .amShadow(
+        audioManager.isPlaying && audioManager.isRadioMode
+          ? AM.Shadow.heroPlaying : AM.Shadow.heroIdle
+      )
       .padding(.horizontal, 32)
       VStack(spacing: 6) {
         Text(song?.title ?? np?.station.name ?? "Neuro 21 Station")
-          .font(.title3.bold())
+          .font(AM.Font.nowPlayingTitle)
           .multilineTextAlignment(.center)
           .lineLimit(2)
         Text(song?.artist ?? np?.station.description ?? "")
-          .font(.subheadline)
+          .font(AM.Font.nowPlayingArtist)
           .foregroundColor(.secondary)
           .multilineTextAlignment(.center)
           .lineLimit(1)
@@ -147,9 +153,7 @@ struct RadioView: View {
   }
   private func historySection(history: [RadioNowPlaying.HistoryItem]) -> some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Recently Played")
-        .font(.title3.bold())
-        .padding(.horizontal, 16)
+      AMSectionHeader("Recently Played")
       LazyVStack(spacing: 0) {
         ForEach(Array(history.prefix(10).enumerated()), id: \.offset) { _, item in
           RadioHistoryRow(song: item.song)
@@ -162,9 +166,7 @@ struct RadioView: View {
   }
   private var hostedStationsSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Hosted Stations")
-        .font(.title3.bold())
-        .padding(.horizontal, 16)
+      AMSectionHeader("Hosted Stations")
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 14) {
           ForEach(RadioStationTile.hosted) { tile in
@@ -177,9 +179,7 @@ struct RadioView: View {
   }
   private var featuredShowsSection: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Text("Featured Shows")
-        .font(.title3.bold())
-        .padding(.horizontal, 16)
+      AMSectionHeader("Featured Shows")
       ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 14) {
           ForEach(RadioShowTile.featured) { tile in
@@ -235,7 +235,8 @@ private struct RadioStationTileView: View {
         .padding(8)
       }
       .frame(width: 200, height: 200)
-      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      .clipShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+      .amShadow(AM.Shadow.card)
       Text(tile.name)
         .font(.system(size: 15, weight: .semibold))
         .lineLimit(1)
@@ -289,7 +290,8 @@ private struct RadioShowTileView: View {
           .padding(12)
       }
       .frame(width: 160, height: 160)
-      .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+      .clipShape(RoundedRectangle(cornerRadius: AM.Radius.card, style: .continuous))
+      .amShadow(AM.Shadow.card)
       Text(tile.title)
         .font(.system(size: 14, weight: .semibold))
         .lineLimit(1)

@@ -48,11 +48,25 @@ nonisolated enum AudioCacheStore {
     return playableURL(for: files(for: songID).main)
   }
 
-  static func playableStems(for songID: String, startOffset: TimeInterval) -> CachedStems? {
+  static func playableStems(
+    for songID: String,
+    startOffset: TimeInterval,
+    expectedDuration: TimeInterval? = nil
+  ) -> CachedStems? {
     let songFiles = files(for: songID)
     guard let vocals = playableURL(for: songFiles.vocals),
       let instruments = playableURL(for: songFiles.instruments)
     else {
+      return nil
+    }
+    guard validateStemPair(
+      vocals: vocals,
+      instruments: instruments,
+      startOffset: startOffset,
+      expectedDuration: expectedDuration)
+    else {
+      DebugLogger.log("Removing invalid stem cache for \(songID)", category: .cache)
+      removeStemCache(for: songID)
       return nil
     }
     return CachedStems(vocals: vocals, instruments: instruments, startOffset: startOffset)
@@ -63,8 +77,7 @@ nonisolated enum AudioCacheStore {
   }
 
   static func hasCachedStems(for songID: String) -> Bool {
-    let songFiles = files(for: songID)
-    return hasCachedPlayableFile(at: songFiles.vocals) && hasCachedPlayableFile(at: songFiles.instruments)
+    playableStems(for: songID, startOffset: readStartOffset(for: songID)) != nil
   }
 
   static func compressedURL(for playableURL: URL) -> URL {
@@ -87,6 +100,20 @@ nonisolated enum AudioCacheStore {
 
   static func removeSongCache(for songID: String) {
     try? fm.removeItem(at: files(for: songID).directory)
+  }
+
+  static func removeStemCache(for songID: String) {
+    let songFiles = files(for: songID)
+    let urls = [
+      songFiles.vocals,
+      songFiles.instruments,
+      compressedURL(for: songFiles.vocals),
+      compressedURL(for: songFiles.instruments),
+      songFiles.offset,
+    ]
+    for url in urls {
+      try? fm.removeItem(at: url)
+    }
   }
 
   static func clearMainOffset(for songID: String) {
@@ -268,11 +295,47 @@ nonisolated enum AudioCacheStore {
     return AVEnginePlayback.hasValidAudioHeader(at: url)
   }
 
+  static func audioDuration(at url: URL) -> TimeInterval {
+    if let file = try? AVAudioFile(forReading: url) {
+      let sampleRate = file.fileFormat.sampleRate
+      if sampleRate > 0 {
+        let duration = Double(file.length) / sampleRate
+        if duration.isFinite, duration > 0 { return duration }
+      }
+    }
+    return 0
+  }
+
   private static func getAudioDuration(at url: URL) -> TimeInterval {
-    let asset = AVURLAsset(url: url)
-    let duration = asset.duration
-    guard duration.isValid, !duration.isIndefinite else { return 0 }
-    return CMTimeGetSeconds(duration)
+    audioDuration(at: url)
+  }
+
+  private static func validateStemPair(
+    vocals: URL,
+    instruments: URL,
+    startOffset: TimeInterval,
+    expectedDuration: TimeInterval?
+  ) -> Bool {
+    guard startOffset.isFinite, startOffset >= 0 else { return false }
+    let vocalsDuration = audioDuration(at: vocals)
+    let instrumentsDuration = audioDuration(at: instruments)
+    guard vocalsDuration.isFinite, instrumentsDuration.isFinite,
+      vocalsDuration > 1.0, instrumentsDuration > 1.0
+    else {
+      return false
+    }
+    let pairTolerance = max(2.0, min(vocalsDuration, instrumentsDuration) * 0.02)
+    guard abs(vocalsDuration - instrumentsDuration) <= pairTolerance else {
+      return false
+    }
+    guard let expectedDuration, expectedDuration.isFinite, expectedDuration > 1.0 else {
+      return true
+    }
+    let expectedStemDuration = max(0, expectedDuration - startOffset)
+    guard expectedStemDuration > 1.0 else { return true }
+    let expectedTolerance = max(4.0, expectedDuration * 0.05)
+    return vocalsDuration + expectedTolerance >= expectedStemDuration
+      && instrumentsDuration + expectedTolerance >= expectedStemDuration
   }
 
   private static func compressPlayableFileIfNeeded(at url: URL) {
