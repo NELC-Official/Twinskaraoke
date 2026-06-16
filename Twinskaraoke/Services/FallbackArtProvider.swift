@@ -70,11 +70,7 @@ nonisolated final class FallbackArtProvider: @unchecked Sendable {
   }
 
   var randomURL: URL? {
-    lock.lock()
-    let cached = items
-    lock.unlock()
-    guard !cached.isEmpty else { return nil }
-    return cached[Int.random(in: 0..<cached.count)].url
+    URL(string: "\(StorageHost.api)/public/art/yuri/random")
   }
 
   private static func stableHash(_ string: String) -> Int {
@@ -185,19 +181,51 @@ nonisolated final class FallbackArtProvider: @unchecked Sendable {
   }
 
   private func fetch() {
-    let urlString = "\(StorageHost.api)/api/media/gallery?page=1&pageSize=48&search=&tag=Twins&sort=newest&hideWebM=false"
-    guard let url = URL(string: urlString) else { return }
-    var request = URLRequest(url: url)
-    GuestIdentity.applyIfNeeded(to: &request)
-    URLSession.shared.dataTask(with: request) { [weak self] data, _, _ in
-      guard let self, let data else { return }
-      guard let response = try? JSONDecoder().decode(GalleryResponse.self, from: data) else { return }
-      let parsed = response.items.compactMap { item -> FallbackArtItem? in
-        guard let path = item.absolutePath else { return nil }
-        guard let url = URL(string: "\(StorageHost.images)\(path)/quality=95") else { return nil }
-        return FallbackArtItem(url: url, artistName: item.artist?.name, artistLink: item.artist?.socialLink)
+    let fetchCount = 48
+    var fetchedItems: [FallbackArtItem] = []
+    let group = DispatchGroup()
+    let syncQueue = DispatchQueue(label: "com.twinskaraoke.fallbackart.sync")
+
+    for _ in 0..<fetchCount {
+      group.enter()
+      let urlString = "\(StorageHost.api)/public/art/yuri/random"
+      guard let url = URL(string: urlString) else {
+        group.leave()
+        continue
       }
-      let uniqueItems = parsed.reduce(into: [FallbackArtItem]()) { result, item in
+      var request = URLRequest(url: url)
+      GuestIdentity.applyIfNeeded(to: &request)
+      URLSession.shared.dataTask(with: request) { data, _, _ in
+        defer { group.leave() }
+        guard let data = data,
+              let item = try? JSONDecoder().decode(RandomArtItem.self, from: data),
+              let baseURL = URL(string: item.url)
+        else { return }
+
+        let urlWithQuality = URL(string: "\(item.url)/width=480,quality=85,format=auto") ?? baseURL
+
+        group.enter()
+        var headRequest = URLRequest(url: urlWithQuality)
+        headRequest.httpMethod = "HEAD"
+        headRequest.timeoutInterval = 10
+        URLSession.shared.dataTask(with: headRequest) { _, response, error in
+          defer { group.leave() }
+          guard error == nil,
+                let httpResponse = response as? HTTPURLResponse,
+                (200...299).contains(httpResponse.statusCode)
+          else { return }
+
+          let fallbackItem = FallbackArtItem(url: urlWithQuality, artistName: item.artistCredit, artistLink: nil)
+          syncQueue.sync {
+            fetchedItems.append(fallbackItem)
+          }
+        }.resume()
+      }.resume()
+    }
+
+    group.notify(queue: .main) { [weak self] in
+      guard let self else { return }
+      let uniqueItems = fetchedItems.reduce(into: [FallbackArtItem]()) { result, item in
         guard !result.contains(where: { $0.url == item.url }) else { return }
         result.append(item)
       }
@@ -205,7 +233,7 @@ nonisolated final class FallbackArtProvider: @unchecked Sendable {
       self.items = uniqueItems
       self.repairDuplicateBindings()
       self.lock.unlock()
-    }.resume()
+    }
   }
 
   private func repairDuplicateBindings() {
@@ -236,16 +264,7 @@ nonisolated private struct FallbackArtItem: Sendable {
   let artistLink: String?
 }
 
-nonisolated private struct GalleryResponse: Decodable {
-  let items: [GalleryItem]
-}
-
-nonisolated private struct GalleryItem: Decodable {
-  let absolutePath: String?
-  let artist: GalleryArtistInfo?
-}
-
-nonisolated private struct GalleryArtistInfo: Decodable {
-  let name: String?
-  let socialLink: String?
+nonisolated private struct RandomArtItem: Decodable {
+  let url: String
+  let artistCredit: String?
 }
