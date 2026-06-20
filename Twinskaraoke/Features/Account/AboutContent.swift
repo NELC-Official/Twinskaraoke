@@ -10,123 +10,320 @@ enum AboutContent {
   static let unofficialNotice =
     "This website is unofficial and is not affiliated with any official Vedal AI entities."
 
-  static let features = """
-    KARAOKE SONGS
-    • Listen to available songs from the collection
-    • Create playlists with or without logging in
-    • Select custom cover art for playlists
-    • Download songs for personal, non-commercial use
-    • Create public playlists that other users can view and listen to
-    ART GALLERY
-    • Fan-created artwork of Neuro and Evil
-    • All artworks displayed are used with explicit permission from the respective artists
-    • Artwork may be displayed for viewing and fan appreciation only. Artwork is not to be reused, redistributed, or commercially exploited without the artist's permission
-    • Artist credits are provided where applicable
-    • Updated with a revamped tagging system featuring over 3,000 tags for more granular artwork search and discovery
-    VIDEO GALLERY
-    • A gallery of karaoke clips from karaoke streams
-    • All videos are edited and uploaded by FlashFire8
-    • Channel: youtube.com/@neurokaraoke
-    SOUNDBITES
-    • A collection of soundbites featuring Neuro and Evil captured from streams
-    • Created and edited by Rachinova and CJ
-    KARAOKE QUIZ
-    Test your knowledge of Neuro and Evil karaoke covers:
-    • Daily Bandle Challenge — A new song challenge every day. Daily, weekly, monthly, and all-time leaderboards
-    • Practice Mode — Customizable round and difficulty settings
-    • Multiplayer Mode — Real-time quiz battles with friends
-    • Battle Royale — Last neuron standing! Players are eliminated each round with escalating audio effects and shrinking timers
-    LISTEN ALONG
-    • Establish rooms with friends and listen to peak music together in real time
-    • Synchronized playback so everyone hears the same song at the same time
-    • Built-in chat to discuss songs and vibe with the community
-    RADIO STATION — NEURO 21 STATION
-    A dedicated radio broadcasting all Neuro and Evil karaoke covers 24/7. \
-    Powered by AzuraCast, this is an actual internet radio station that streams continuously.
-    OFFLINE DOWNLOADS & PWA
-    • The website is a Progressive Web App (PWA) with offline capabilities
-    • Download songs to your browser storage and listen without an internet connection
-    • The site itself is accessible offline after your first visit with internet
-    NEURO & EVIL QUOTES
-    • Memorable quotes from our esteemed AI overlords
-    • Submit your favorite Neuro and Evil quotes — submitters are credited
-    • Quotes are managed by Promote
-    REAL-TIME CHAT
-    • Chat with other users in Listen Along rooms and during multiplayer/battle royale quiz games
-    • Moderated by NeuroCop and EvilCop — AI-powered moderator bots roleplaying as Neuro and Evil to keep things fun and safe
-    BADGE & LEVELING SYSTEM
-    • Collect badges by completing various activities and achievements
-    • Earn experience points (XP) through listening, playing quizzes, upvoting, and more to level up your profile
-    • Badges come in four rarities: Common, Rare, Epic, and Legendary
-    • Badge art by liquain (x.com/liquain_) • Badge art editing by Emuz (x.com/possiblyemuz)
-    CURRENCIES — Neuro Coin | Evil Coin | Twins Coin
-    • Three in-site currencies earned through activities like listening, playing the daily challenge, quiz games, upvoting, and leveling up
-    • Each coin can only be earned on its respective domain (Neuro Coin on neurokaraoke.com, Evil Coin on evilkaraoke.com, Twins Coin on twinskaraoke.com)
-    • Spend coins to expand your playlist limit or upload song limit
-    • Coming soon!
-    KARAOKE APP
-    The Neuro & Evil Karaoke App is a community project created and maintained by Aferil. \
-    Desktop (Windows), Linux, and macOS versions are packaged as standalone apps. \
-    The Android version is available as an APK.
-    NEURO-SAMA'S SWARM CANVAS
-    A community canvas project connected to the website. Dedicated to:
-    • Creating pixel art of Neuro-sama and Evil Neuro
-    • Converting pixel art into canvas-compatible formats
-    • Coordinating placement of artwork on pixel-based game canvases
-    • Login sessions with pxls.space now persist across page reloads (requires third-party cookies; iOS not supported)
-    • Contact _laku. on Discord or any Swarm Canvas council members for assistance
-    """
+  struct FeatureGroup: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let systemImage: String
+    let bullets: [String]
+  }
 
-  static let language = """
-    The site supports three languages: English, Japanese, and Chinese.
-    Hover over or click the language icon in the navigation bar to switch languages.
-    """
+  static let musicFeatures: [FeatureGroup] = [
+    FeatureGroup(
+      id: "karaoke-songs",
+      title: "Karaoke Songs",
+      subtitle: "The core collection of Neuro and Evil covers.",
+      systemImage: "music.note.list",
+      bullets: [
+        "Listen to available songs from the collection.",
+        "Create playlists with or without logging in.",
+        "Select custom cover art for playlists.",
+        "Download songs for personal, non-commercial use.",
+        "Create public playlists that other users can view and listen to.",
+      ]
+    ),
+    FeatureGroup(
+      id: "radio",
+      title: "Neuro 21 Radio Station",
+      subtitle: "A 24/7 stream of Neuro and Evil karaoke covers.",
+      systemImage: "dot.radiowaves.left.and.right",
+      bullets: [
+        "Broadcasts continuously through the dedicated internet radio station.",
+        "Powered by AzuraCast.",
+        "Available in the app through the Radio tab.",
+      ]
+    ),
+    FeatureGroup(
+      id: "offline",
+      title: "Offline Downloads & PWA",
+      subtitle: "Ways to keep music available after the first visit.",
+      systemImage: "arrow.down.circle.fill",
+      bullets: [
+        "The website is a Progressive Web App with offline capabilities.",
+        "Downloaded songs can be played from browser storage without an internet connection.",
+        "This native app stores downloaded audio on this device for offline playback.",
+      ]
+    ),
+  ]
 
-  static let contact = """
-    For inquiries, credit corrections, or copyright take-down requests, please contact:
-    @soul1419 on Discord
-    """
+  static let communityFeatures: [FeatureGroup] = [
+    FeatureGroup(
+      id: "art-gallery",
+      title: "Art Gallery",
+      subtitle: "Fan-created artwork with explicit artist permission.",
+      systemImage: "photo.on.rectangle.angled",
+      bullets: [
+        "Artwork is displayed for viewing and fan appreciation only.",
+        "Artwork may not be reused, redistributed, or commercially exploited without the artist's permission.",
+        "Artist credits are provided where applicable.",
+        "The revamped tagging system includes over 3,000 tags for granular discovery.",
+      ]
+    ),
+    FeatureGroup(
+      id: "video-gallery",
+      title: "Video Gallery",
+      subtitle: "Karaoke clips from streams.",
+      systemImage: "play.rectangle.fill",
+      bullets: [
+        "Videos are edited and uploaded by FlashFire8.",
+        "Channel: youtube.com/@neurokaraoke.",
+      ]
+    ),
+    FeatureGroup(
+      id: "soundbites",
+      title: "Soundbites",
+      subtitle: "Short moments captured from streams.",
+      systemImage: "waveform",
+      bullets: [
+        "Features Neuro and Evil soundbites captured from streams.",
+        "Created and edited by Rachinova and CJ.",
+      ]
+    ),
+    FeatureGroup(
+      id: "quotes",
+      title: "Neuro & Evil Quotes",
+      subtitle: "Community-submitted memorable lines.",
+      systemImage: "quote.bubble.fill",
+      bullets: [
+        "Submit favorite Neuro and Evil quotes.",
+        "Submitters are credited.",
+        "Quotes are managed by Promote.",
+      ]
+    ),
+    FeatureGroup(
+      id: "canvas",
+      title: "Neuro-sama's Swarm Canvas",
+      subtitle: "A community canvas project connected to the website.",
+      systemImage: "rectangle.and.pencil.and.ellipsis",
+      bullets: [
+        "Creates pixel art of Neuro-sama and Evil Neuro.",
+        "Converts pixel art into canvas-compatible formats.",
+        "Coordinates artwork placement on pixel-based game canvases.",
+        "pxls.space login sessions persist across page reloads when third-party cookies are available. iOS is not supported.",
+        "Contact _laku. on Discord or any Swarm Canvas council member for assistance.",
+      ]
+    ),
+  ]
 
-  static let privacy = """
-    PRIVACY
-    We collect only minimal data required for functionality.
-    Guest users:
-    • Anonymous guest ID stored in browser local storage
-    Logged-in users:
-    • Discord user ID and avatar
-    Playlists & uploads:
-    • Stored securely
-    • User-uploaded songs remain private
-    We do not collect emails, real names, or sensitive personal data.
-    On this device, Twinskaraoke stores your sign-in token, recently played \
-    playlists, and downloaded audio. We do not sell or share your listening \
-    data with third parties.
-    Anonymous guest identifiers are sent to api.neurokaraoke.com when you browse \
-    the catalog. When you sign in, your account token is sent to the same service \
-    to fetch your favorites and personal settings. Audio cover art and song files \
-    are streamed from neurokaraoke.com. Live radio metadata comes from \
-    radio.twinskaraoke.com.
-    """
+  static let playFeatures: [FeatureGroup] = [
+    FeatureGroup(
+      id: "quiz",
+      title: "Karaoke Quiz",
+      subtitle: "Knowledge games for Neuro and Evil covers.",
+      systemImage: "questionmark.circle.fill",
+      bullets: [
+        "Daily Bandle Challenge with daily, weekly, monthly, and all-time leaderboards.",
+        "Practice Mode with customizable rounds and difficulty.",
+        "Multiplayer Mode for real-time quiz battles with friends.",
+        "Battle Royale eliminates players each round with escalating audio effects and shrinking timers.",
+      ]
+    ),
+    FeatureGroup(
+      id: "listen-along",
+      title: "Listen Along",
+      subtitle: "Synchronized rooms for shared listening.",
+      systemImage: "person.2.wave.2.fill",
+      bullets: [
+        "Create rooms with friends and listen together in real time.",
+        "Playback stays synchronized for everyone in the room.",
+        "Built-in chat keeps discussion beside the music.",
+      ]
+    ),
+    FeatureGroup(
+      id: "chat",
+      title: "Real-Time Chat",
+      subtitle: "Conversation for rooms and quiz games.",
+      systemImage: "bubble.left.and.bubble.right.fill",
+      bullets: [
+        "Chat with other users in Listen Along rooms.",
+        "Chat is also available during multiplayer and battle royale quiz games.",
+        "NeuroCop and EvilCop moderate as AI-powered roleplay moderator bots.",
+      ]
+    ),
+    FeatureGroup(
+      id: "badges",
+      title: "Badges & Leveling",
+      subtitle: "Progression across listening and community activities.",
+      systemImage: "rosette",
+      bullets: [
+        "Collect badges by completing activities and achievements.",
+        "Earn XP through listening, quizzes, upvoting, and more.",
+        "Badges come in Common, Rare, Epic, and Legendary rarities.",
+        "Badge art by liquain. Badge art editing by Emuz.",
+      ]
+    ),
+    FeatureGroup(
+      id: "currencies",
+      title: "Currencies",
+      subtitle: "Neuro Coin, Evil Coin, and Twins Coin.",
+      systemImage: "circle.hexagongrid.fill",
+      bullets: [
+        "Coins are earned through listening, daily challenges, quiz games, upvoting, and leveling up.",
+        "Each coin is earned on its respective domain.",
+        "Coins will be spendable on playlist and upload limit expansion.",
+        "Coming soon.",
+      ]
+    ),
+  ]
 
-  static let terms = """
-    TERMS OF SERVICE
-    By using this website, you agree to the following:
-    FAN-MADE PROJECT DISCLAIMER
-    This website is a non-commercial, fan-made project and is not officially \
-    affiliated with Neuro or Evil.
-    PERSONAL & NON-COMMERCIAL USE ONLY
-    All content is provided for personal enjoyment only. Commercial use is prohibited.
-    USER RESPONSIBILITY
-    Users are solely responsible for any content they upload.
-    PLAYLIST RETENTION POLICY
-    Guest playlists may be deleted after 30 days of inactivity. Logged-in users \
-    retain playlists across devices.
-    PUBLIC VISIBILITY
-    Public playlists may be viewed and listened to by other users.
-    NO LIABILITY
-    The website is provided "as-is". We are not responsible for data loss, \
-    service availability, or third-party claims.
-    COPYRIGHT COMPLIANCE
-    We comply with DMCA and applicable international copyright regulations.
-    """
+  static let appFeatures: [FeatureGroup] = [
+    FeatureGroup(
+      id: "karaoke-app",
+      title: "Karaoke App",
+      subtitle: "Community-maintained desktop, Android, and Apple clients.",
+      systemImage: "apps.iphone",
+      bullets: [
+        "Created and maintained by Aferil.",
+        "Desktop versions are packaged for Windows, Linux, and macOS.",
+        "The Android version is distributed as an APK.",
+        "This repository provides the native SwiftUI iPhone, iPad, and Apple Watch app.",
+      ]
+    )
+  ]
+
+  struct LegalSection: Identifiable {
+    let id: String
+    let title: String
+    let body: String?
+    let bullets: [String]
+
+    init(id: String, title: String, body: String? = nil, bullets: [String]) {
+      self.id = id
+      self.title = title
+      self.body = body
+      self.bullets = bullets
+    }
+  }
+
+  static let privacySummary =
+    "We collect only the minimal data required to make playback, accounts, playlists, and downloads work."
+
+  static let privacySections: [LegalSection] = [
+    LegalSection(
+      id: "guest-users",
+      title: "Guest Users",
+      bullets: [
+        "An anonymous guest ID may be stored locally and sent to the API when you browse the catalog.",
+        "Guest playlists are tied to that anonymous identifier.",
+      ]
+    ),
+    LegalSection(
+      id: "signed-in-users",
+      title: "Signed-In Users",
+      bullets: [
+        "Discord user ID and avatar can be stored when you sign in.",
+        "The app stores your sign-in token on this device.",
+        "Account tokens are sent to the API to fetch favorites and personal settings.",
+      ]
+    ),
+    LegalSection(
+      id: "playlists-uploads",
+      title: "Playlists & Uploads",
+      bullets: [
+        "Playlists are stored securely by the service.",
+        "User-uploaded songs remain private unless the service explicitly marks them otherwise.",
+        "Public playlists can be viewed and listened to by other users.",
+      ]
+    ),
+    LegalSection(
+      id: "device-storage",
+      title: "On This Device",
+      bullets: [
+        "Twinskaraoke stores recently played playlists.",
+        "Downloaded audio is stored locally for offline playback.",
+        "Cached images, lyrics, and music can be cleared from app settings.",
+      ]
+    ),
+    LegalSection(
+      id: "network-services",
+      title: "Network Services",
+      bullets: [
+        "Catalog and account requests are sent to api.neurokaraoke.com.",
+        "Audio cover art and song files are streamed from neurokaraoke.com or the configured regional storage host.",
+        "Live radio metadata comes from radio.twinskaraoke.com.",
+      ]
+    ),
+    LegalSection(
+      id: "not-collected",
+      title: "Not Collected",
+      body: "We do not sell or share your listening data with third parties.",
+      bullets: [
+        "Email addresses.",
+        "Real names.",
+        "Sensitive personal data.",
+      ]
+    ),
+  ]
+
+  static let termsSummary =
+    "By using the Neuro & Evil Karaoke Web Player and this client, you agree to these community-use terms."
+
+  static let termsSections: [LegalSection] = [
+    LegalSection(
+      id: "fan-made",
+      title: "Fan-Made Project Disclaimer",
+      bullets: [
+        "This is a non-commercial, fan-made project.",
+        "It is not officially affiliated with Neuro, Evil, Vedal AI, or related official entities.",
+      ]
+    ),
+    LegalSection(
+      id: "personal-use",
+      title: "Personal & Non-Commercial Use",
+      bullets: [
+        "All content is provided for personal enjoyment only.",
+        "Commercial use is prohibited.",
+      ]
+    ),
+    LegalSection(
+      id: "user-responsibility",
+      title: "User Responsibility",
+      bullets: [
+        "Users are solely responsible for any content they upload.",
+        "Do not upload content you do not have permission to use.",
+      ]
+    ),
+    LegalSection(
+      id: "playlist-retention",
+      title: "Playlist Retention",
+      bullets: [
+        "Guest playlists may be deleted after 30 days of inactivity.",
+        "Logged-in users retain playlists across devices.",
+      ]
+    ),
+    LegalSection(
+      id: "public-visibility",
+      title: "Public Visibility",
+      bullets: [
+        "Public playlists may be viewed and listened to by other users.",
+        "Only make playlists public when the title, artwork, and song selection are appropriate for public browsing.",
+      ]
+    ),
+    LegalSection(
+      id: "no-liability",
+      title: "No Liability",
+      bullets: [
+        "The website and app are provided as-is.",
+        "The project is not responsible for data loss, service availability, or third-party claims.",
+      ]
+    ),
+    LegalSection(
+      id: "copyright",
+      title: "Copyright Compliance",
+      bullets: [
+        "The project complies with DMCA and applicable international copyright regulations.",
+        "For credit corrections or take-down requests, use the contact page.",
+      ]
+    ),
+  ]
 }

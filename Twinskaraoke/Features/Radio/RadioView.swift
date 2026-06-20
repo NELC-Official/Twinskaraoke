@@ -78,7 +78,13 @@ struct RadioView: View {
           .padding(.bottom, AM.Spacing.l)
         }
         .tabBarScrollInset()
-        .smoothScrolling()
+        // Radio can be shorter than the viewport, so keep vertical bounce
+        // always on here. Otherwise `.basedOnSize` can disable the overscroll
+        // gesture that reveals SwiftUI's refresh control.
+        .smoothScrolling(bounceBehavior: .always)
+        .refreshable {
+          await retryRadioRefresh()
+        }
         .musicScreenBackground()
       }
       .navigationTitle("Radio")
@@ -97,9 +103,6 @@ struct RadioView: View {
             AccountToolbarButton()
           }
         }
-      }
-      .refreshable {
-        await retryRadioRefresh()
       }
       .onAppear { radio.start() }
       .sheet(isPresented: $showingRadioSchedule) {

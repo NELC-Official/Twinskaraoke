@@ -50,18 +50,19 @@ final class ScrollPerformanceState: ObservableObject {
 extension View {
   /// Apply scroll defaults that match native-feeling touch tracking and mark active
   /// scrolls so decorative work can pause during high-velocity gestures.
-  func smoothScrolling() -> some View {
-    modifier(SmoothScrollingModifier())
+  func smoothScrolling(bounceBehavior: ScrollBounceBehavior = .basedOnSize) -> some View {
+    modifier(SmoothScrollingModifier(bounceBehavior: bounceBehavior))
   }
 
 }
 
 private struct SmoothScrollingModifier: ViewModifier {
+  let bounceBehavior: ScrollBounceBehavior
   @State private var scrollID = UUID()
 
   func body(content: Content) -> some View {
     let configured = content
-      .scrollBounceBehavior(.basedOnSize)
+      .scrollBounceBehavior(bounceBehavior)
       .scrollDismissesKeyboard(.interactively)
 
     if #available(iOS 18.0, *) {

@@ -71,29 +71,49 @@ struct AboutView: View {
       }
       Section("Explore") {
         NavigationLink {
-          longText("Features & Content", body: AboutContent.features)
+          FeaturesContentView()
         } label: {
-          AboutLinkRow(icon: "sparkles", color: .appAccent, title: "Features & Content")
+          AboutLinkRow(
+            icon: "sparkles",
+            color: .appAccent,
+            title: "Features & Content",
+            subtitle: "Catalog, radio, galleries, games, and community tools")
         }
         NavigationLink {
           CreditsView()
         } label: {
-          AboutLinkRow(icon: "heart.fill", color: .pink, title: "Credits")
+          AboutLinkRow(
+            icon: "heart.fill",
+            color: .pink,
+            title: "Credits",
+            subtitle: "Artists, maintainers, testers, and contributors")
         }
         NavigationLink {
-          longText("Language Support", body: AboutContent.language)
+          LanguageSupportView()
         } label: {
-          AboutLinkRow(icon: "globe", color: .blue, title: "Language Support")
+          AboutLinkRow(
+            icon: "globe",
+            color: .blue,
+            title: "Language Support",
+            subtitle: "Available app languages and regional behavior")
         }
         NavigationLink {
           iOSAppDevelopmentView()
         } label: {
-          AboutLinkRow(icon: "hammer.fill", color: .orange, title: "iOS App Development")
+          AboutLinkRow(
+            icon: "hammer.fill",
+            color: .orange,
+            title: "iOS App Development",
+            subtitle: "Source code, stack, and contribution notes")
         }
         NavigationLink {
-          longText("Contact & Take-Down Requests", body: AboutContent.contact)
+          ContactSupportView()
         } label: {
-          AboutLinkRow(icon: "envelope.fill", color: .indigo, title: "Contact")
+          AboutLinkRow(
+            icon: "envelope.fill",
+            color: .indigo,
+            title: "Contact",
+            subtitle: "Credit corrections and take-down requests")
         }
       }
       Section("Resources") {
@@ -117,19 +137,31 @@ struct AboutView: View {
       }
       Section("Legal") {
         NavigationLink {
-          longText("Privacy Policy", body: AboutContent.privacy)
+          PrivacyPolicyView()
         } label: {
-          AboutLinkRow(icon: "hand.raised.fill", color: .gray, title: "Privacy Policy")
+          AboutLinkRow(
+            icon: "hand.raised.fill",
+            color: .gray,
+            title: "Privacy Policy",
+            subtitle: "Data storage, network services, and user choices")
         }
         NavigationLink {
-          longText("Terms of Service", body: AboutContent.terms)
+          TermsOfServiceView()
         } label: {
-          AboutLinkRow(icon: "doc.text.fill", color: .gray, title: "Terms of Service")
+          AboutLinkRow(
+            icon: "doc.text.fill",
+            color: .gray,
+            title: "Terms of Service",
+            subtitle: "Community-use rules and legal disclaimers")
         }
         NavigationLink {
           AcknowledgementsView()
         } label: {
-          AboutLinkRow(icon: "shippingbox.fill", color: .orange, title: "Open Source Licenses")
+          AboutLinkRow(
+            icon: "shippingbox.fill",
+            color: .orange,
+            title: "Open Source Licenses",
+            subtitle: "Third-party package acknowledgements")
         }
       }
       Section {
@@ -146,20 +178,6 @@ struct AboutView: View {
     .background(Color.appGroupedBackground.ignoresSafeArea())
   }
 
-  private func longText(_ title: String, body: String) -> some View {
-    ScrollView {
-      LinkifiedText(text: body)
-        .font(.body)
-        .foregroundStyle(.primary)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .frame(maxWidth: horizontalSizeClass == .regular ? 700 : .infinity, alignment: .leading)
-        .frame(maxWidth: .infinity, alignment: .top)
-    }
-    .musicScreenBackground()
-    .navigationTitle(title)
-    .navigationBarTitleDisplayMode(.inline)
-  }
   @ViewBuilder
   private var appIconView: some View {
     if !AppLogoData.shared.isEmpty {
@@ -192,6 +210,328 @@ struct AboutView: View {
       let newState = !DeveloperMode.isEnabled
       DeveloperMode.isEnabled = newState
     }
+  }
+}
+
+private struct FeaturesContentView: View {
+  var body: some View {
+    AboutDetailList(accessibilityIdentifier: "About.FeaturesContent") {
+      Section {
+        AboutHeroRow(
+          icon: "sparkles",
+          color: .appAccent,
+          title: "Features & Content",
+          subtitle:
+            "A structured map of the web player, radio, galleries, community systems, and native app features."
+        )
+      }
+      Section("Music") {
+        featureRows(AboutContent.musicFeatures, color: .appAccent)
+      }
+      Section("Community") {
+        featureRows(AboutContent.communityFeatures, color: .pink)
+      }
+      Section("Play") {
+        featureRows(AboutContent.playFeatures, color: .blue)
+      }
+      Section("Apps") {
+        featureRows(AboutContent.appFeatures, color: .green)
+      }
+    }
+    .navigationTitle("Features & Content")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+
+  @ViewBuilder
+  private func featureRows(_ features: [AboutContent.FeatureGroup], color: Color) -> some View {
+    ForEach(features) { feature in
+      AboutFeatureRow(feature: feature, color: color)
+    }
+  }
+}
+
+private struct AboutFeatureRow: View {
+  let feature: AboutContent.FeatureGroup
+  let color: Color
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      HStack(alignment: .top, spacing: 12) {
+        AboutIconBadge(systemImage: feature.systemImage, color: color, size: 32)
+        VStack(alignment: .leading, spacing: 3) {
+          Text(feature.title)
+            .font(.body.bold())
+            .foregroundStyle(.primary)
+          Text(feature.subtitle)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+      AboutBulletList(items: feature.bullets)
+        .padding(.leading, 44)
+    }
+    .padding(.vertical, 5)
+  }
+}
+
+private struct LanguageSupportView: View {
+  @AppStorage(AppLanguage.storageKey) private var languageMode: String = AppLanguage.system.rawValue
+
+  private var selectedLanguage: AppLanguage {
+    AppLanguage(rawValue: languageMode) ?? .system
+  }
+
+  var body: some View {
+    AboutDetailList(accessibilityIdentifier: "About.LanguageSupport") {
+      Section {
+        AboutHeroRow(
+          icon: "globe",
+          color: .blue,
+          title: "Language Support",
+          subtitle:
+            "The app follows your selected language setting and keeps regional storage behavior separate from interface language."
+        )
+      }
+      Section("App Languages") {
+        ForEach(AppLanguage.allCases) { language in
+          LanguageSupportRow(
+            language: language,
+            isSelected: language == selectedLanguage
+          )
+        }
+      }
+      Section("Coverage") {
+        AboutInfoRow(
+          icon: "iphone",
+          color: .appAccent,
+          title: "Native App",
+          detail:
+            "Interface strings use the app language selected in Music settings. System mode follows the current device locale."
+        )
+        AboutInfoRow(
+          icon: "safari.fill",
+          color: .blue,
+          title: "Web Player",
+          detail:
+            "The web player provides localized navigation and content where translations are available."
+        )
+        AboutInfoRow(
+          icon: "server.rack",
+          color: .green,
+          title: "Storage Region",
+          detail:
+            "Media hosts are selected separately from language, using the device region unless an nk.storageRegion override is set."
+        )
+      }
+      Section {
+        NavigationLink {
+          SettingsView()
+        } label: {
+          AboutLinkRow(
+            icon: "gearshape.fill",
+            color: .gray,
+            title: "Open Music Settings",
+            subtitle: "Change language, appearance, playback, and storage preferences")
+        }
+      }
+    }
+    .navigationTitle("Language Support")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+}
+
+private struct LanguageSupportRow: View {
+  let language: AppLanguage
+  let isSelected: Bool
+
+  var body: some View {
+    HStack(spacing: 12) {
+      AboutIconBadge(systemImage: icon, color: color, size: 30)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(language.displayName)
+          .font(.body)
+          .foregroundStyle(.primary)
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+      }
+      Spacer()
+      if isSelected {
+        Image(systemName: "checkmark.circle.fill")
+          .foregroundStyle(Color.appAccent)
+          .accessibilityLabel("Selected")
+      }
+    }
+    .padding(.vertical, 3)
+    .accessibilityElement(children: .combine)
+  }
+
+  private var detail: String {
+    switch language {
+    case .system:
+      return "Use the current device locale."
+    default:
+      return "Locale \(language.localeIdentifier)"
+    }
+  }
+
+  private var icon: String {
+    switch language {
+    case .system:
+      return "iphone"
+    case .english:
+      return "textformat"
+    case .simplifiedChinese, .traditionalChinese:
+      return "character.book.closed.fill"
+    case .japanese:
+      return "character.textbox"
+    case .french, .german, .finnish, .ukrainian:
+      return "text.bubble.fill"
+    }
+  }
+
+  private var color: Color {
+    switch language {
+    case .system:
+      return .gray
+    case .english:
+      return .appAccent
+    case .simplifiedChinese, .traditionalChinese:
+      return .red
+    case .japanese:
+      return .purple
+    case .french:
+      return .blue
+    case .german:
+      return .orange
+    case .finnish:
+      return .teal
+    case .ukrainian:
+      return .yellow
+    }
+  }
+}
+
+private struct ContactSupportView: View {
+  var body: some View {
+    AboutDetailList(accessibilityIdentifier: "About.ContactSupport") {
+      Section {
+        AboutHeroRow(
+          icon: "envelope.fill",
+          color: .indigo,
+          title: "Contact",
+          subtitle:
+            "Use the project contact for credit corrections, copyright concerns, and take-down requests."
+        )
+      }
+      Section("Primary Contact") {
+        AboutInfoRow(
+          icon: "person.crop.circle.badge.questionmark",
+          color: .indigo,
+          title: "Discord",
+          detail: "@soul1419"
+        )
+      }
+      Section("Good Reasons To Reach Out") {
+        AboutBulletList(
+          items: [
+            "Credit corrections for artwork, clips, soundbites, metadata, or badges.",
+            "Copyright take-down requests.",
+            "Artist permission updates.",
+            "Broken links or incorrect public attribution.",
+          ])
+          .padding(.vertical, 4)
+      }
+      Section("Take-Down Requests") {
+        AboutInfoRow(
+          icon: "doc.text.magnifyingglass",
+          color: .orange,
+          title: "Include The Exact Item",
+          detail:
+            "Send the song, artwork, video, quote, or playlist URL plus the reason for the request."
+        )
+        AboutInfoRow(
+          icon: "person.text.rectangle",
+          color: .blue,
+          title: "Include Ownership Context",
+          detail:
+            "Share the creator name, original post, or permission record so the team can verify the request quickly."
+        )
+      }
+      Section("Project Status") {
+        AboutInfoRow(
+          icon: "info.circle.fill",
+          color: .gray,
+          title: "Unofficial Fan Project",
+          detail: AboutContent.unofficialNotice
+        )
+      }
+    }
+    .navigationTitle("Contact")
+    .navigationBarTitleDisplayMode(.inline)
+  }
+}
+
+private struct PrivacyPolicyView: View {
+  var body: some View {
+    AboutLegalContentView(
+      title: "Privacy Policy",
+      icon: "hand.raised.fill",
+      color: .gray,
+      summary: AboutContent.privacySummary,
+      sections: AboutContent.privacySections
+    )
+  }
+}
+
+private struct TermsOfServiceView: View {
+  var body: some View {
+    AboutLegalContentView(
+      title: "Terms of Service",
+      icon: "doc.text.fill",
+      color: .gray,
+      summary: AboutContent.termsSummary,
+      sections: AboutContent.termsSections
+    )
+  }
+}
+
+private struct AboutLegalContentView: View {
+  let title: String
+  let icon: String
+  let color: Color
+  let summary: String
+  let sections: [AboutContent.LegalSection]
+
+  var body: some View {
+    AboutDetailList(
+      accessibilityIdentifier: "About.\(title.replacingOccurrences(of: " ", with: ""))"
+    ) {
+      Section {
+        AboutHeroRow(
+          icon: icon,
+          color: color,
+          title: title,
+          subtitle: summary
+        )
+      }
+      ForEach(sections) { legalSection in
+        Section(legalSection.title) {
+          if let body = legalSection.body {
+            LinkifiedText(text: body)
+              .font(.subheadline)
+              .foregroundStyle(.secondary)
+              .fixedSize(horizontal: false, vertical: true)
+              .padding(.vertical, 2)
+          }
+          AboutBulletList(items: legalSection.bullets)
+            .padding(.vertical, 2)
+        }
+      }
+    }
+    .navigationTitle(title)
+    .navigationBarTitleDisplayMode(.inline)
   }
 }
 

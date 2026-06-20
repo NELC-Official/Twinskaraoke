@@ -194,22 +194,18 @@ struct SettingsView: View {
     Section {
       NotificationPreferenceToggle(
         title: "New Songs",
-        subtitle: "Karaoke releases and new additions",
         isOn: $notificationsNewSongs
       )
       NotificationPreferenceToggle(
         title: "Radio",
-        subtitle: "Live station changes and featured shows",
         isOn: $notificationsRadio
       )
       NotificationPreferenceToggle(
         title: "Downloads",
-        subtitle: "Completed offline saves and storage updates",
         isOn: $notificationsDownloads
       )
       NotificationPreferenceToggle(
         title: "Account",
-        subtitle: "Badges, levels, and sign-in activity",
         isOn: $notificationsAccount
       )
     } header: {
@@ -997,24 +993,17 @@ private struct CrossfadeDurationRow: View {
 
 private struct NotificationPreferenceToggle: View {
   let title: String
-  let subtitle: String
   @Binding var isOn: Bool
 
   var body: some View {
     Toggle(isOn: $isOn) {
-      VStack(alignment: .leading, spacing: 2) {
-        Text(title)
-          .font(.body)
-          .foregroundStyle(.primary)
-        Text(subtitle)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-      }
+      Text(title)
+        .font(.body)
+        .foregroundStyle(.primary)
     }
     .tint(.appAccent)
     .accessibilityLabel(title)
     .accessibilityValue(isOn ? "On" : "Off")
-    .accessibilityHint(subtitle)
     .onChange(of: isOn) { _, enabled in
       enabled ? AppHaptic.selection.play() : AppHaptic.light.play()
     }

@@ -4,17 +4,144 @@ struct AboutLinkRow: View {
   let icon: String
   let color: Color
   let title: String
+  var subtitle: String?
+
   var body: some View {
-    HStack(spacing: 14) {
-      Image(systemName: icon)
-        .font(.system(size: 17, weight: .semibold))
-        .foregroundStyle(color)
-        .frame(width: 28, alignment: .center)
-      Text(title)
-        .font(.body)
+    HStack(spacing: 12) {
+      AboutIconBadge(systemImage: icon, color: color, size: 30)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.body)
+          .foregroundStyle(.primary)
+        if let subtitle {
+          Text(subtitle)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+        }
+      }
       Spacer()
     }
+    .padding(.vertical, subtitle == nil ? 1 : 3)
     .accessibilityElement(children: .combine)
+  }
+}
+
+struct AboutDetailList<Content: View>: View {
+  @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+  let accessibilityIdentifier: String
+  private let content: () -> Content
+
+  init(accessibilityIdentifier: String, @ViewBuilder content: @escaping () -> Content) {
+    self.accessibilityIdentifier = accessibilityIdentifier
+    self.content = content
+  }
+
+  var body: some View {
+    if horizontalSizeClass == .regular {
+      ZStack(alignment: .top) {
+        Color.appGroupedBackground.ignoresSafeArea()
+        detailList
+          .frame(maxWidth: 700, maxHeight: .infinity, alignment: .top)
+          .padding(.horizontal, AM.Spacing.screenMargin)
+          .accessibilityIdentifier(accessibilityIdentifier)
+      }
+    } else {
+      detailList
+    }
+  }
+
+  private var detailList: some View {
+    List {
+      content()
+    }
+    .listStyle(.insetGrouped)
+    .scrollContentBackground(.hidden)
+    .background(Color.appGroupedBackground.ignoresSafeArea())
+  }
+}
+
+struct AboutIconBadge: View {
+  let systemImage: String
+  let color: Color
+  var size: CGFloat = 32
+
+  var body: some View {
+    Image(systemName: systemImage)
+      .font(.system(size: size * 0.48, weight: .semibold))
+      .symbolRenderingMode(.hierarchical)
+      .foregroundStyle(.white)
+      .frame(width: size, height: size)
+      .background(
+        color, in: RoundedRectangle(cornerRadius: min(8, size * 0.25), style: .continuous))
+  }
+}
+
+struct AboutHeroRow: View {
+  let icon: String
+  let color: Color
+  let title: String
+  let subtitle: String
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 10) {
+      AboutIconBadge(systemImage: icon, color: color, size: 42)
+      VStack(alignment: .leading, spacing: 4) {
+        Text(title)
+          .font(.title3.bold())
+          .foregroundStyle(.primary)
+        Text(subtitle)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+    }
+    .padding(.vertical, 6)
+  }
+}
+
+struct AboutInfoRow: View {
+  let icon: String
+  let color: Color
+  let title: String
+  let detail: String
+
+  var body: some View {
+    HStack(alignment: .top, spacing: 12) {
+      AboutIconBadge(systemImage: icon, color: color, size: 30)
+      VStack(alignment: .leading, spacing: 2) {
+        Text(title)
+          .font(.body)
+          .foregroundStyle(.primary)
+        Text(detail)
+          .font(.subheadline)
+          .foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
+      Spacer(minLength: 0)
+    }
+    .padding(.vertical, 3)
+    .accessibilityElement(children: .combine)
+  }
+}
+
+struct AboutBulletList: View {
+  let items: [String]
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 7) {
+      ForEach(items, id: \.self) { item in
+        HStack(alignment: .firstTextBaseline, spacing: 9) {
+          Circle()
+            .fill(Color.secondary.opacity(0.55))
+            .frame(width: 4, height: 4)
+          LinkifiedText(text: item)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
   }
 }
 

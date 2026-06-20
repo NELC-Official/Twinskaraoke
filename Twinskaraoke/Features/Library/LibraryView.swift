@@ -489,11 +489,11 @@ final class LibrarySongsViewModel: ObservableObject {
 
   func loadIfNeeded() {
     guard !hasLoaded else { return }
-    hasLoaded = true
     fetch(page: 1, replace: true)
   }
 
   func refresh() {
+    hasLoaded = false
     canLoadMore = true
     fetch(page: 1, replace: true)
   }
@@ -587,6 +587,7 @@ final class LibrarySongsViewModel: ObservableObject {
 
     if replace {
       songs = pageSongs
+      hasLoaded = true
     } else {
       let existing = Set(songs.map(\.id))
       songs += pageSongs.filter { !existing.contains($0.id) }
