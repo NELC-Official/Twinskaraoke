@@ -78,12 +78,19 @@ struct RemoteArtworkImage: View {
 
   @ViewBuilder
   private func imageContent(size: CGSize) -> some View {
-    let pixelSize = NSValue(cgSize: thumbnailPixelSize(for: size))
+    let displaySize = sanitizedDisplaySize(size)
+    let pixelSize = NSValue(cgSize: thumbnailPixelSize(for: displaySize))
     let context: [SDWebImageContextOption: Any] =
       fullResolution
       ? [:] : [
         .imageThumbnailPixelSize: pixelSize,
-        .imageDecodeOptions: [SDImageCoderOption.decodeScaleFactor: 1.0]
+        .imageDecodeOptions: [SDImageCoderOption.decodeScaleFactor: 1.0],
+        // Thumbnail decode can leave SDWebImage without original bytes, forcing
+        // ImageIO to re-encode formats such as WebP for disk storage. Keep the
+        // thumbnail variant in memory and store/query the original bytes on disk.
+        .storeCacheType: NSNumber(value: SDImageCacheType.memory.rawValue),
+        .originalStoreCacheType: NSNumber(value: SDImageCacheType.disk.rawValue),
+        .originalQueryCacheType: NSNumber(value: SDImageCacheType.disk.rawValue)
       ]
     ZStack {
       if !transparentBackground {
@@ -98,7 +105,7 @@ struct RemoteArtworkImage: View {
           image
             .resizable()
             .aspectRatio(contentMode: contentMode)
-            .frame(width: size.width, height: size.height)
+            .frame(width: displaySize.width, height: displaySize.height)
             .clipped()
             .blur(radius: 2)
         } placeholder: {
@@ -114,7 +121,7 @@ struct RemoteArtworkImage: View {
           image
             .resizable()
             .aspectRatio(contentMode: contentMode)
-            .frame(width: size.width, height: size.height)
+            .frame(width: displaySize.width, height: displaySize.height)
             .clipped()
             .onAppear {
               markRendered(url)
@@ -148,12 +155,29 @@ struct RemoteArtworkImage: View {
 
   private func markFinishedAfterFailure(for failedURL: URL) {
     guard url == failedURL, !loadFailed else { return }
+    evictFailedImageCache(for: failedURL)
     Task { @MainActor in
       guard url == failedURL, !loadFailed else { return }
       withOptionalAnimation(AppMotion.spring(response: 0.12, dampingFraction: 0.9)) {
         loadFailed = true
       }
     }
+  }
+
+  private func evictFailedImageCache(for failedURL: URL) {
+    // A corrupt cached image will keep hitting ImageIO on every render. Remove
+    // both cache tiers so the next attempt has to fetch fresh bytes.
+    let cacheKey = failedURL.absoluteString
+    SDImageCache.shared.removeImageFromMemory(forKey: cacheKey)
+    SDImageCache.shared.removeImageFromDisk(forKey: cacheKey)
+  }
+
+  private func sanitizedDisplaySize(_ size: CGSize) -> CGSize {
+    // SwiftUI can briefly report non-finite geometry during aggressive layout
+    // churn. Clamp before using the values in fixed frames or decode requests.
+    let width = size.width.isFinite ? max(size.width, 1) : 1
+    let height = size.height.isFinite ? max(size.height, 1) : 1
+    return CGSize(width: width, height: height)
   }
 
   private func thumbnailPixelSize(for displaySize: CGSize) -> CGSize {

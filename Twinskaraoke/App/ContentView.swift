@@ -10,54 +10,100 @@ import SwiftUI
 private final class PopupPlaybackState: ObservableObject {
   static let shared = PopupPlaybackState()
 
-  @Published private(set) var hasCurrentSong = false
-  @Published private(set) var title = ""
-  @Published private(set) var subtitle = ""
-  @Published private(set) var artwork: UIImage?
-  @Published private(set) var isPlaying = false
-  @Published private(set) var isRadioMode = false
+  var hasCurrentSong: Bool { snapshot.id != nil }
+  var title: String { snapshot.title }
+  var subtitle: String { snapshot.subtitle }
+  var artwork: UIImage? { snapshot.artwork }
+  var isPlaying: Bool { snapshot.isPlaying }
+  var isRadioMode: Bool { snapshot.isRadioMode }
 
+  @Published private var snapshot = PopupPlaybackSnapshot()
+  private var pendingSnapshot = PopupPlaybackSnapshot()
+  private var publishTask: Task<Void, Never>?
   private var cancellables = Set<AnyCancellable>()
 
   private init() {
     let manager = AudioPlayerManager.shared
     manager.$currentSong
-      .map { song in
-        PopupSongSnapshot(
-          id: song?.id,
-          title: song?.title ?? "",
-          subtitle: song?.displayArtist ?? ""
-        )
-      }
-      .removeDuplicates()
-      .sink { [weak self] snapshot in
-        self?.hasCurrentSong = snapshot.id != nil
-        self?.title = snapshot.title
-        self?.subtitle = snapshot.subtitle
+      .removeDuplicates(by: {
+        $0?.id == $1?.id
+          && $0?.title == $1?.title
+          && $0?.displayArtist == $1?.displayArtist
+      })
+      .sink { [weak self] song in
+        self?.updatePendingSnapshot { snapshot in
+          snapshot.id = song?.id
+          snapshot.title = song?.title ?? ""
+          snapshot.subtitle = song?.displayArtist ?? ""
+        }
       }
       .store(in: &cancellables)
 
     manager.$nowPlayingArtwork
       .removeDuplicates(by: { $0 === $1 })
-      .sink { [weak self] in self?.artwork = $0 }
+      .sink { [weak self] artwork in
+        self?.updatePendingSnapshot { snapshot in
+          snapshot.artwork = artwork
+        }
+      }
       .store(in: &cancellables)
 
     manager.$isPlaying
       .removeDuplicates()
-      .sink { [weak self] in self?.isPlaying = $0 }
+      .sink { [weak self] isPlaying in
+        self?.updatePendingSnapshot { snapshot in
+          snapshot.isPlaying = isPlaying
+        }
+      }
       .store(in: &cancellables)
 
     manager.$isRadioMode
       .removeDuplicates()
-      .sink { [weak self] isRadioMode in self?.isRadioMode = isRadioMode }
+      .sink { [weak self] isRadioMode in
+        self?.updatePendingSnapshot { snapshot in
+          snapshot.isRadioMode = isRadioMode
+        }
+      }
       .store(in: &cancellables)
+  }
+
+  private func updatePendingSnapshot(_ update: (inout PopupPlaybackSnapshot) -> Void) {
+    update(&pendingSnapshot)
+    scheduleSnapshotPublish()
+  }
+
+  private func scheduleSnapshotPublish() {
+    guard publishTask == nil else { return }
+    publishTask = Task { @MainActor [weak self] in
+      await Task.yield()
+      guard let self else { return }
+      let nextSnapshot = self.pendingSnapshot
+      self.publishTask = nil
+      guard !self.snapshot.matches(nextSnapshot) else { return }
+      // LNPopupUI stores title, image, and button data as SwiftUI preferences.
+      // Publishing one coalesced snapshot prevents rapid track changes from
+      // writing those preferences several times in a single render frame.
+      self.snapshot = nextSnapshot
+    }
   }
 }
 
-private struct PopupSongSnapshot: Equatable {
-  let id: String?
-  let title: String
-  let subtitle: String
+private struct PopupPlaybackSnapshot {
+  var id: String?
+  var title = ""
+  var subtitle = ""
+  var artwork: UIImage?
+  var isPlaying = false
+  var isRadioMode = false
+
+  func matches(_ other: PopupPlaybackSnapshot) -> Bool {
+    id == other.id
+      && title == other.title
+      && subtitle == other.subtitle
+      && artwork === other.artwork
+      && isPlaying == other.isPlaying
+      && isRadioMode == other.isRadioMode
+  }
 }
 
 #if canImport(UIKit)

@@ -91,12 +91,15 @@ private struct PressableButtonBody: View {
       .scaleEffect(reduceMotion ? 1.0 : (configuration.isPressed ? scale : 1.0))
       .opacity(currentOpacity)
       .animation(reduceMotion ? nil : animation, value: configuration.isPressed)
+      #if os(watchOS)
       .onChange(of: configuration.isPressed) { isPressed in
-        if isPressed && !wasPressed {
-          haptic?.play()
-        }
-        wasPressed = isPressed
+        updatePressState(isPressed)
       }
+      #else
+      .onChange(of: configuration.isPressed) { _, isPressed in
+        updatePressState(isPressed)
+      }
+      #endif
   }
 
   private var currentOpacity: Double {
@@ -106,6 +109,13 @@ private struct PressableButtonBody: View {
 
   private var animation: Animation {
     pressAnimation ?? AppMotion.spring(response: 0.32, dampingFraction: 0.7)
+  }
+
+  private func updatePressState(_ isPressed: Bool) {
+    if isPressed && !wasPressed {
+      haptic?.play()
+    }
+    wasPressed = isPressed
   }
 
   private var reduceMotion: Bool {
