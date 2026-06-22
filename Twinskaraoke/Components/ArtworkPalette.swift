@@ -10,6 +10,13 @@ struct ArtworkPalette: Equatable {
     var tertiary: Color
     var quaternary: Color
 
+    init(primary: Color, secondary: Color, tertiary: Color, quaternary: Color) {
+        self.primary = primary
+        self.secondary = secondary
+        self.tertiary = tertiary
+        self.quaternary = quaternary
+    }
+
     static let placeholder = ArtworkPalette(
         primary: .appPlaceholderPrimary,
         secondary: .appPlaceholderSecondary,
