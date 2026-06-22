@@ -227,9 +227,6 @@ struct FullScreenPlayerView: View {
         fetchCoverArtArtist(songID: id)
       }
     }
-    .onDisappear {
-      audioManager.showFullScreen = false
-    }
   }
   @ViewBuilder
   private func musicLayout(song: Song, metrics: PlayerLayoutMetrics) -> some View {
