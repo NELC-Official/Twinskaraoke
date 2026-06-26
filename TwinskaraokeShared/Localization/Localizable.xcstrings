@@ -2760,13 +2760,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "艺廊"
+            "value" : "画廊"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "藝廊"
+            "value" : "畫廊"
           }
         }
       }
@@ -19349,13 +19349,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Songs will be analyzed in the background so karaoke modes can switch instantly during playback.\n\nThis uses more battery and processing power. Separated stems count toward the 4 GB music cache limit."
+            "value" : "歌曲将在后台进行分析，以便在播放时能够即时切换卡拉OK模式。\n\n这会消耗更多电量和处理性能。分离出的音轨将计入 4 GB 音乐缓存限制"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Songs will be analyzed in the background so karaoke modes can switch instantly during playback.\n\nThis uses more battery and processing power. Separated stems count toward the 4 GB music cache limit."
+            "value" : "歌曲將在背景進行分析，以便在播放時能夠即時切換卡拉OK模式。\n\n這會消耗更多電量與運算效能。分離後的音軌將計入 4 GB 音樂快取限制。"
           }
         }
       }
@@ -19401,13 +19401,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Songs you play next will appear here."
+            "value" : "接下来播放的歌曲将显示在这里"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Songs you play next will appear here."
+            "value" : "接下來播放的歌曲將顯示在這裡"
           }
         }
       }
@@ -19453,13 +19453,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Songs, Artists, Lyrics, and More"
+            "value" : "歌曲、艺人、歌词及更多"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Songs, Artists, Lyrics, and More"
+            "value" : "歌曲、藝人、歌詞及更多"
           }
         }
       }
@@ -19505,13 +19505,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sort Songs"
+            "value" : "歌曲排序"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sort Songs"
+            "value" : "歌曲排序"
           }
         }
       }
@@ -19557,13 +19557,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Source Code"
+            "value" : "源码"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Source Code"
+            "value" : "原始程式碼"
           }
         }
       }
@@ -19609,13 +19609,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Special Thanks"
+            "value" : "特别鸣谢"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Special Thanks"
+            "value" : "特別鳴謝"
           }
         }
       }
@@ -19661,13 +19661,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Starts playback."
+            "value" : "开始播放"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Starts playback."
+            "value" : "開始播放"
           }
         }
       }
@@ -19713,13 +19713,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop live radio"
+            "value" : "停止收听电台"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop live radio"
+            "value" : "停止收聽電台"
           }
         }
       }
@@ -19765,13 +19765,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop Live Radio"
+            "value" : "停止收听直播电台"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stop Live Radio"
+            "value" : "停止收聽直播電台"
           }
         }
       }
@@ -19817,13 +19817,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Storage"
+            "value" : "存储空间"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Storage"
+            "value" : "儲存空間"
           }
         }
       }
@@ -19872,13 +19872,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Strength"
+            "value" : "强度"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Strength"
+            "value" : "強度"
           }
         }
       }
@@ -19924,13 +19924,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to adjust this band by one decibel."
+            "value" : "上下滑动以 1 分贝为单位进行调整"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to adjust this band by one decibel."
+            "value" : "上下滑動以 1 分貝為單位進行調整"
           }
         }
       }
@@ -19976,13 +19976,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to adjust vocal removal."
+            "value" : "上下滑动以调整人声消除"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to adjust vocal removal."
+            "value" : "上下滑動以調整人聲消除"
           }
         }
       }
@@ -20028,13 +20028,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to adjust."
+            "value" : "上下滑动以调整"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to adjust."
+            "value" : "上下滑動以調整"
           }
         }
       }
@@ -20080,13 +20080,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to seek by 15 seconds."
+            "value" : "上下滑动以快进或快退 15 秒"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up or down to seek by 15 seconds."
+            "value" : "上下滑動以快進或快退 15 秒"
           }
         }
       }
@@ -20132,13 +20132,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync"
+            "value" : "同步"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync"
+            "value" : "同步"
           }
         }
       }
@@ -20184,13 +20184,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync Library"
+            "value" : "同步资料库"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sync Library"
+            "value" : "同步資料庫"
           }
         }
       }
@@ -20239,13 +20239,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap an indicator to clear that cache. Image cache is limited to 2 GB, music cache (including AI stems) to 4 GB, and lyrics cache to 2 GB. Items older than 6 months are automatically cleaned. Downloads are exempt from these limits."
+            "value" : "轻点指示条可清除对应缓存。图片缓存上限为 2 GB，音乐缓存（含 AI 分轨）上限为 4 GB，歌词缓存上限为 2 GB。超过 6 个月的项目会自动清理。下载内容不受此限制"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap an indicator to clear that cache. Image cache is limited to 2 GB, music cache (including AI stems) to 4 GB, and lyrics cache to 2 GB. Items older than 6 months are automatically cleaned. Downloads are exempt from these limits."
+            "value" : "輕點指示條可清除對應快取。圖片快取上限為 2 GB，音樂快取（含 AI 分軌）上限為 4 GB，歌詞快取上限為 2 GB。超過 6 個月的項目會自動清理。下載內容不受此限制"
           }
         }
       }
@@ -20291,13 +20291,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tech Stack"
+            "value" : "技术栈"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tech Stack"
+            "value" : "技術堆疊"
           }
         }
       }
@@ -20343,13 +20343,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The developer menu and related features will be hidden until you turn developer mode back on."
+            "value" : "开发者菜单和相关功能将隐藏，直至再次开启开发者模式。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The developer menu and related features will be hidden until you turn developer mode back on."
+            "value" : "開發者選單和相關功能將會隱藏，直到再次開啟開發者模式。"
           }
         }
       }
@@ -20395,13 +20395,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The scanner will open as soon as access is ready."
+            "value" : "获得相应权限后即可使用扫描功能"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The scanner will open as soon as access is ready."
+            "value" : "取得相應權限後即可使用掃描功能"
           }
         }
       }
@@ -20447,13 +20447,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Theme"
+            "value" : "主题"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Theme"
+            "value" : "主題"
           }
         }
       }
@@ -20499,13 +20499,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This result cannot be played on Apple Watch."
+            "value" : "该内容无法在 Apple Watch 上播放"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This result cannot be played on Apple Watch."
+            "value" : "該內容無法在 Apple Watch 上播放"
           }
         }
       }
@@ -20551,13 +20551,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trending"
+            "value" : "热门"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Trending"
+            "value" : "熱門"
           }
         }
       }
@@ -20603,13 +20603,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Try again"
+            "value" : "再试一次"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Try again"
+            "value" : "再試一次"
           }
         }
       }
@@ -20666,13 +20666,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn Off Vocal Removal"
+            "value" : "关闭人声消除"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn Off Vocal Removal"
+            "value" : "關閉人聲消除"
           }
         }
       }
@@ -20718,13 +20718,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn On"
+            "value" : "开启"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn On"
+            "value" : "開啟"
           }
         }
       }
@@ -20770,13 +20770,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on auto-analyze during playback?"
+            "value" : "是否在播放时开启自动分析？"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn on auto-analyze during playback?"
+            "value" : "是否在播放時開啟自動分析？"
           }
         }
       }
@@ -20822,13 +20822,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn the Digital Crown or swipe up and down to adjust."
+            "value" : "旋转数码表冠或上下滑动以调整"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Turn the Digital Crown or swipe up and down to adjust."
+            "value" : "旋轉數碼錶冠或上下滑動以調整"
           }
         }
       }
